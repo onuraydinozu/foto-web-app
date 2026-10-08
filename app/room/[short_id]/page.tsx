@@ -1489,7 +1489,14 @@ export default function RoomPage() {
     setYoutubeSaving(true);
     let finalUrl = '';
     if (videoId) finalUrl = `yt:${videoId}`;
-    await supabase.from('rooms').update({ spotify_url: finalUrl }).eq('id', room.id);
+    
+    // Call server-side API to bypass RLS issues for room updates
+    await fetch('/api/update-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: room.id, spotify_url: finalUrl }),
+    });
+
     setRoom((prev: any) => ({ ...prev, spotify_url: finalUrl }));
     channelRef.current?.send?.({
       type: 'broadcast',
@@ -1828,33 +1835,38 @@ export default function RoomPage() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl overflow-hidden border border-red-500/40 bg-[#12151F]/95 backdrop-blur-xl shadow-[0_0_30px_rgba(255,0,0,0.18)]"
+              className="rounded-2xl overflow-hidden border border-[#FF2E93]/30 bg-black/40 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between p-2.5 sm:p-3 gap-3 shadow-[0_0_25px_rgba(255,46,147,0.15)]"
             >
-              <div className="px-3.5 py-1.5 bg-red-500/10 border-b border-red-500/20 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
-                  <span className="font-bold text-red-500 flex items-center gap-1.5 text-xs">
-                    <Disc3 className="w-3.5 h-3.5 text-red-500 animate-[spin_3s_linear_infinite]" />
-                    Kapsülün Şarkısı Çalıyor 🎵
-                  </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="w-[120px] shrink-0 aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=1&modestbranding=1`}
+                    title="Kapsül Müziği"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    className="w-full h-full"
+                  />
                 </div>
-                <button
-                  onClick={() => setShowYoutubeModal(true)}
-                  className="text-[11px] font-bold text-neutral-300 hover:text-white px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
-                >
-                  Şarkıyı Değiştir 🎧
-                </button>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF2E93] animate-pulse" />
+                    <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-[#FF2E93]">Canlı Müzik</span>
+                  </div>
+                  <p className="text-white text-xs sm:text-sm font-black flex items-center gap-1.5">
+                    <Disc3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white animate-[spin_3s_linear_infinite]" />
+                    Kapsülün Şarkısı Çalıyor
+                  </p>
+                </div>
               </div>
-              <iframe
-                width="100%"
-                height="80"
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=1`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full"
-              />
+              
+              <button
+                onClick={() => setShowYoutubeModal(true)}
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                <Music className="w-3.5 h-3.5" />
+                Şarkıyı Değiştir
+              </button>
             </motion.div>
           );
         })()}
