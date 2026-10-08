@@ -16,6 +16,7 @@ import {
   Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut
 } from 'lucide-react';
 import exifr from 'exifr';
+import AuthModal from '@/components/AuthModal';
 import PollsCard from '@/components/PollsCard';
 import YoutubePlayer from '@/components/YoutubePlayer';
 import SwipeCuratorModal from '@/components/SwipeCuratorModal';
@@ -217,6 +218,7 @@ export default function RoomPage() {
   const [currentNickname, setCurrentNickname] = useState('');
   const [currentCity, setCurrentCity] = useState('');
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [tempNick, setTempNick] = useState('');
   const [tempCity, setTempCity] = useState('');
 
@@ -454,9 +456,19 @@ export default function RoomPage() {
     setCurrentCity(savedCity);
 
     // Eğer linkle geldiyse ve rumuz yoksa, rumuz isteme modalını aç
-    if (!savedNick) {
-      setShowUserModal(true);
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        setShowAuthModal(true);
+      } else if (!savedNick) {
+        const username = session.user.user_metadata?.username || session.user.email?.split('@')[0];
+        if (username) {
+          localStorage.setItem('snaproom_nickname', username);
+          setCurrentNickname(username);
+        } else {
+          setShowUserModal(true);
+        }
+      }
+    });
 
     fetchData();
     fetchStorageStats();
@@ -2400,7 +2412,24 @@ export default function RoomPage() {
           <PollsCard roomId={room?.id || params.short_id} channel={channelState} />
         </div>
 
-      </main>
+      
+      <AuthModal 
+        forceLogin={true}
+        isOpen={showAuthModal} 
+        onClose={() => {}} 
+        onSuccess={(newUser: any) => {
+          setShowAuthModal(false);
+          const username = newUser.user_metadata?.username || newUser.email?.split('@')[0];
+          if (username) {
+            localStorage.setItem('snaproom_nickname', username);
+            setCurrentNickname(username);
+          } else {
+            setShowUserModal(true);
+          }
+          fetchData();
+        }} 
+      />
+</main>
 
       {/* ========================================================
           ALT YÜZEN DOCK (Fotoğraf Bas, Ses Kaydet, ZIP İndir)

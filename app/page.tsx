@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import AuthModal from '@/components/AuthModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, Camera, Zap, Flame, Bomb, MapPin, Globe, Radio, Lock, User, LogIn, LogOut, LayoutList, X, History } from 'lucide-react';
 
@@ -29,12 +30,7 @@ export default function Home() {
   // AUTH & KAPSÜLLERİM STATES
   const [user, setUser] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [myCapsules, setMyCapsules] = useState<any[]>([]);
+            const [myCapsules, setMyCapsules] = useState<any[]>([]);
 
 
   const inputRefs = [
@@ -100,27 +96,7 @@ export default function Home() {
     }
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    setAuthLoading(true);
-    try {
-      if (authMode === 'register') {
-        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-        if (error) throw error;
-        setAuthMode('login');
-        setAuthError('Kayıt başarılı! Lütfen giriş yapın (E-posta doğrulaması kapalıysa anında girer).');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-        if (error) throw error;
-      }
-    } catch (err: any) {
-      setAuthError(err.message || 'Bir hata oluştu.');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
+  
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -303,95 +279,15 @@ export default function Home() {
     <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-start sm:justify-center items-center pt-24 sm:pt-6 p-4 sm:p-6 pb-20 overflow-x-hidden selection:bg-[#CCFF00] selection:text-black">
       
       {/* AUTH MODALI */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setShowAuthModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-[#12151F] border border-white/10 rounded-[2rem] p-6 max-w-sm w-full shadow-2xl relative"
-            >
-              <button
-                onClick={() => setShowAuthModal(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#CCFF00] flex items-center justify-center">
-                  <User className="w-4 h-4 text-black font-black" />
-                </div>
-                <h3 className="text-xl font-black text-white">SnapRoom <span className="text-[#CCFF00]">Hesabı</span></h3>
-              </div>
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onSuccess={(newUser: any) => {
+          setUser(newUser);
+          fetchMyCapsules(newUser);
+        }} 
+      />
 
-              <div className="flex bg-black/40 rounded-xl p-1 mb-6 border border-white/10">
-                <button
-                  onClick={() => { setAuthMode('login'); setAuthError(''); }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${authMode === 'login' ? 'bg-white/15 text-white shadow-sm' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Giriş Yap
-                </button>
-                <button
-                  onClick={() => { setAuthMode('register'); setAuthError(''); }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${authMode === 'register' ? 'bg-white/15 text-white shadow-sm' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Kayıt Ol
-                </button>
-              </div>
-
-              <form onSubmit={handleAuth} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-neutral-400">E-Posta</label>
-                  <input
-                    type="email"
-                    required
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-600 rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
-                    placeholder="ornek@mail.com"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-neutral-400">Şifre</label>
-                  <input
-                    type="password"
-                    required
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-600 rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
-                    placeholder="••••••••"
-                  />
-                </div>
-                
-                {authError && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold text-center">
-                    {authError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="w-full py-3 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-sm transition shadow-sm disabled:opacity-50"
-                >
-                  {authLoading ? 'Bekleniyor...' : authMode === 'login' ? 'Giriş Yap 🚀' : 'Hesap Oluştur ✨'}
-                </button>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      
       {/* 1. CANLI AMBIENT MESH GRADIENT */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -left-20 w-[480px] h-[480px] bg-gradient-to-tr from-[#7928CA]/40 to-[#4F46E5]/30 rounded-full blur-[60px] opacity-40" />
@@ -463,7 +359,7 @@ export default function Home() {
                     <User className="w-4 h-4 text-[#CCFF00]" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-white text-xs font-bold truncate max-w-[150px] sm:max-w-[200px]">{user.email}</span>
+                    <span className="text-white text-xs font-bold truncate max-w-[150px] sm:max-w-[200px]">{user?.user_metadata?.username || user?.email?.split("@")[0] || "Kullanıcı"}</span>
                     <span className="text-[#CCFF00] text-[10px] font-black uppercase tracking-widest">Bağlı Hesap</span>
                   </div>
                 </div>
