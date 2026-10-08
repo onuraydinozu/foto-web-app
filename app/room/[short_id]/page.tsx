@@ -677,6 +677,20 @@ export default function RoomPage() {
       setRoom(roomData);
       setIsLocked(new Date() > new Date(roomData.upload_locked_at));
 
+      // Oturum açmışsa bu odayı otomatik olarak kullanıcının geçmişine ekle (direkt linkten geldiyse diye)
+      try {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            const currentCapsules = user.user_metadata?.capsules || [];
+            if (!currentCapsules.includes(params.short_id)) {
+              const newCapsules = [params.short_id, ...currentCapsules];
+              supabase.auth.updateUser({ data: { capsules: newCapsules } });
+            }
+          }
+        });
+      } catch (e) {}
+
+
       // Zaman Tüneli: Çekilme saatine göre sıralı (en son çekilen üstte)
       const { data: photosData } = await supabase
         .from('photos')

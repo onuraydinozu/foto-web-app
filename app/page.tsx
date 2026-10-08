@@ -226,6 +226,7 @@ export default function Home() {
         return;
       }
 
+      await addCapsuleToUser(room.short_id);
       router.push(`/room/${room.short_id}?token=${room.pin_hash || room.short_id}`);
     } catch (e: any) {
       setJoinLoading(false);
