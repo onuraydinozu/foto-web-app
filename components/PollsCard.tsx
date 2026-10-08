@@ -82,7 +82,7 @@ export default function PollsCard({ roomId = 'default', channel }: PollsCardProp
 
       // Sunucudan gerçek anketleri çek
       try {
-        const res = await fetch(`/api/polls?roomId=${encodeURIComponent(roomId)}`);
+        const res = await fetch(`/api/polls?roomId=${encodeURIComponent(roomId)}&_t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.polls) && data.polls.length > 0) {
@@ -162,12 +162,16 @@ export default function PollsCard({ roomId = 'default', channel }: PollsCardProp
   const handleVote = (optionId: string) => {
     if (!currentPoll || votedMap[currentPoll.id]) return;
 
-    confetti({
-      particleCount: 60,
-      spread: 70,
-      origin: { y: 0.8 },
-      colors: ['#CCFF00', '#FF2E93', '#7928CA', '#FFFFFF'],
-    });
+    try {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 60,
+          spread: 70,
+          origin: { y: 0.8 },
+          colors: ['#CCFF00', '#FF2E93', '#7928CA', '#FFFFFF'],
+        });
+      }
+    } catch(err) { console.error('Confetti err:', err); }
 
     const newVotedMap = { ...votedMap, [currentPoll.id]: optionId };
     setVotedMap(newVotedMap);

@@ -190,6 +190,7 @@ export default function RoomPage() {
   const [activeViewers, setActiveViewers] = useState<number>(1);
   const [liveViewers, setLiveViewers] = useState<string[]>([]);
   const channelRef = useRef<any>(null);
+  const [channelState, setChannelState] = useState<any>(null);
   const serverDeletedSet = useRef<Set<string>>(new Set());
 
   // Story Modu Durumları (Tap-to-Advance İzleyici)
@@ -2396,7 +2397,7 @@ export default function RoomPage() {
 
         {/* GÜNÜN EN'LERİ ANKET KARTI */}
         <div className="pt-4">
-          <PollsCard roomId={room?.id || params.short_id} channel={channelRef.current} />
+          <PollsCard roomId={room?.id || params.short_id} channel={channelState} />
         </div>
 
       </main>
