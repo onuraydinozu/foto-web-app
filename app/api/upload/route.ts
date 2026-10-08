@@ -119,6 +119,25 @@ export async function DELETE(req: Request) {
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
         const supabase = createClient(supabaseUrl, supabaseKey);
 
+        // Güvenlik: yalnızca süresi GERÇEKTEN dolmuş odalar temizlenebilir
+        const { data: roomRow } = await supabase
+          .from('rooms')
+          .select('created_at, upload_locked_at')
+          .eq('id', roomId)
+          .maybeSingle();
+        if (!roomRow) {
+          return NextResponse.json({ error: "Oda bulunamadı" }, { status: 404 });
+        }
+        const createdMs = new Date(roomRow.created_at).getTime();
+        // Süre seçici öncesi oluşturulan odalarda upload_locked_at otomatik 24 saatti; bunlar 48 saat sayılır
+        const isLegacy = createdMs < new Date('2026-10-08T12:49:00Z').getTime();
+        const expiresAt = !isLegacy && roomRow.upload_locked_at
+          ? new Date(roomRow.upload_locked_at).getTime()
+          : createdMs + 48 * 3600 * 1000;
+        if (Date.now() < expiresAt) {
+          return NextResponse.json({ error: "Kapsülün süresi henüz dolmadı" }, { status: 403 });
+        }
+
         const { data: roomPhotos } = await supabase.from('photos').select('id, r2_file_key').eq('room_id', roomId);
         if (roomPhotos && roomPhotos.length > 0) {
           for (const p of roomPhotos) {

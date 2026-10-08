@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import JSZip from 'jszip';
@@ -13,7 +13,7 @@ import {
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
   Music, Check, UploadCloud, Flame, Camera,
   Trash2, CheckSquare, Square, FileDown, Layers,
-  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart
+  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut
 } from 'lucide-react';
 import exifr from 'exifr';
 import PollsCard from '@/components/PollsCard';
@@ -176,6 +176,7 @@ function parseSpotifyTrack(input: string): { type: 'track' | 'playlist' | 'album
 }
 
 export default function RoomPage() {
+  const router = useRouter();
   const params = useParams() as { short_id: string };
   const searchParams = useSearchParams();
   const tokenPin = searchParams?.get('token') || searchParams?.get('pin');
@@ -588,7 +589,8 @@ export default function RoomPage() {
 
     const interval = setInterval(() => {
       const created = new Date(room.created_at).getTime();
-      const expires = room.upload_locked_at
+      const isLegacy = created < new Date('2026-10-08T12:49:00Z').getTime();
+      const expires = !isLegacy && room.upload_locked_at
         ? new Date(room.upload_locked_at).getTime()
         : created + 48 * 60 * 60 * 1000;
       const diff = expires - Date.now();
@@ -1631,6 +1633,18 @@ export default function RoomPage() {
         >
           {/* Sol Kısım: Kapsül Başlığı & KOD */}
           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+            {/* KAPSÜLDEN ÇIK / ANA SAYFAYA DÖN */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => router.push('/')}
+              title="Kapsülden Çık / Ana Sayfaya Dön"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/15 hover:border-red-400/50 text-neutral-300 hover:text-red-300 text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5 shrink-0 rotate-180" />
+              <span className="hidden sm:inline">Çıkış</span>
+            </motion.button>
+
             <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-white/5 border border-white/10 shrink-0">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#CCFF00] animate-pulse shrink-0" />
               <span className="font-black text-[11px] sm:text-sm tracking-wide text-white truncate max-w-[70px] xs:max-w-[105px] sm:max-w-[170px]">
