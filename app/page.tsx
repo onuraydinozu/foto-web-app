@@ -267,7 +267,7 @@ export default function Home() {
         <p className="mt-2 text-center text-neutral-800 font-bold text-xs">
           ✨ Gün Batımı · 18:24
         </p>
-      </motion.div>
+      </div>
 
       <motion.div
         initial={{ y: -40, rotate: 16 }}
@@ -289,15 +289,13 @@ export default function Home() {
         <p className="mt-2 text-center text-neutral-800 font-bold text-xs">
           🌊 Sahil Dump&apos;ı · 23:42
         </p>
-      </motion.div>
+      </div>
 
       {/* HESAP & KAPSÜLLERİM ALANI (BİRLEŞTİRİLMİŞ) */}
       <div className="w-full max-w-md mx-auto mb-6 relative z-10">
         {user ? (
-          <AnimatePresence>
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+          
+            <div
               className="bg-[#12151F]/90 backdrop-blur-sm rounded-[2rem] border border-[#CCFF00]/20 p-5 shadow-md relative"
             >
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
@@ -345,13 +343,10 @@ export default function Home() {
                   Henüz hiçbir kapsüle katılmadın.
                 </div>
               )}
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          
         ) : (
-          <motion.div
-            initial={{ y: 10 }}
-            animate={{ y: 0 }}
-            style={{ opacity: 1 }}
+          <div
             className="bg-gradient-to-r from-[#12151F]/90 to-[#12151F]/80 backdrop-blur-sm rounded-[2rem] border border-white/15 p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div className="flex items-center gap-3">
@@ -369,7 +364,7 @@ export default function Home() {
             >
               Giriş Yap / Kayıt
             </button>
-          </motion.div>
+          </div>
         )}
       </div>
 
@@ -377,20 +372,14 @@ export default function Home() {
       <div className="relative z-20 w-full max-w-[460px] my-auto">
         
         {/* KARTA YAPIŞIK ROZETLER */}
-        <motion.div
-          initial={{ scale: 0, rotate: -15 }}
-          animate={{ scale: 1, rotate: -7 }}
-          whileHover={{ scale: 1.1, rotate: 0 }}
+        <div
           className="absolute -top-4 -left-3 sm:-left-6 z-30 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#CCFF00] text-black font-black text-[11px] tracking-wider uppercase shadow-md border-2 border-black select-none cursor-default"
         >
           <Radio className="w-3.5 h-3.5 shrink-0 fill-black animate-pulse" />
           <span>UZAKTAN ORTAK DUMP</span>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ scale: 0, rotate: 18 }}
-          animate={{ scale: 1, rotate: 6 }}
-          whileHover={{ scale: 1.1, rotate: 0 }}
+        <div
           className="absolute -top-4 -right-3 sm:-right-6 z-30 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF2E93] text-white font-black text-[11px] tracking-wider uppercase shadow-md border-2 border-white/20 select-none cursor-default"
         >
           <Bomb className="w-3.5 h-3.5 shrink-0" />
@@ -401,23 +390,18 @@ export default function Home() {
               ? '7 GÜN SEYAHAT 🗓️'
               : '48H CLOUD CAPSULE 💣'}
           </span>
-        </motion.div>
+        </div>
 
         {/* ANA GLASS KART */}
-        <motion.div
-          initial={{ scale: 0.95, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 140 }}
+        <div
           className="relative bg-white/[0.04] backdrop-blur-sm border border-white/15 rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-5 overflow-hidden"
         >
           <div className="flex flex-col items-center text-center space-y-2 pt-2">
-            <motion.div
-              whileHover={{ rotate: 10, scale: 1.1 }}
-              transition={{ type: 'spring', stiffness: 300 }}
+            <div
               className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#7928CA]/40 via-[#FF2E93]/30 to-[#CCFF00]/30 border border-white/20 flex items-center justify-center mb-1 shadow-lg"
             >
               <Globe className="w-8 h-8 text-[#CCFF00] shrink-0 " />
-            </motion.div>
+            </div>
             
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center justify-center gap-1">
               Ortak Kapsül<span className="text-[#CCFF00] ">.</span>
@@ -556,9 +540,7 @@ export default function Home() {
           </div>
 
           {/* Başlat Butonu */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={createCapsule}
             disabled={loading}
             className="w-full py-4 px-6 rounded-2xl bg-[#CCFF00] text-black font-black text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition disabled:opacity-50 cursor-pointer"
@@ -571,7 +553,7 @@ export default function Home() {
                 <span>Ortak Kapsülü Başlat 🚀</span>
               </>
             )}
-          </motion.button>
+          </button>
 
           {/* Kapsül Kodu ile Doğrudan Bağlanma Bölümü */}
           <div className="pt-2 border-t border-white/10 space-y-2.5">
@@ -619,7 +601,7 @@ export default function Home() {
           </div>
 
           {/* Hata Bildirimi */}
-          <AnimatePresence>
+          
             {errorMsg && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -628,10 +610,10 @@ export default function Home() {
                 className="text-xs font-bold text-[#FF2E93] bg-[#FF2E93]/15 border border-[#FF2E93]/30 rounded-2xl p-3 text-center"
               >
                 {errorMsg}
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
-        </motion.div>
+          
+        </div>
       </div>
 
       <footer className="relative z-10 pt-6 text-neutral-500 text-[11px] font-mono tracking-wider select-none text-center flex items-center justify-center gap-3 flex-wrap">
