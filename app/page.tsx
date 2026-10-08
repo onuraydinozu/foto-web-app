@@ -22,7 +22,7 @@ export default function Home() {
   const [userCity, setUserCity] = useState('');
   const [hasSavedProfile, setHasSavedProfile] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<number>(48);
-  const [codeDigits, setCodeDigits] = useState(['', '', '', '', '', '']);
+  const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -33,14 +33,7 @@ export default function Home() {
             const [myCapsules, setMyCapsules] = useState<any[]>([]);
 
 
-  const inputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
+  
 
   useEffect(() => {
     const savedNick = localStorage.getItem('snaproom_nickname');
@@ -102,57 +95,11 @@ export default function Home() {
   };
 
 
-  const handleDigitChange = (index: number, value: string) => {
-    const cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    if (!cleaned) {
-      const newDigits = [...codeDigits];
-      newDigits[index] = '';
-      setCodeDigits(newDigits);
-      return;
-    }
-    const lastChar = cleaned.slice(-1);
-    const newDigits = [...codeDigits];
-    newDigits[index] = lastChar;
-    setCodeDigits(newDigits);
-    setErrorMsg('');
-
-    if (lastChar && index < 5) {
-      inputRefs[index + 1].current?.focus();
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !codeDigits[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
-    }
-  };
-
+  
+  
   // Yapıştırma (Paste) Desteği: kullanıcı "I56XBR" veya direkt oda linki yapıştırdığında otomatik doldurur
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').trim();
-    let cleanCode = pasted;
-    const match = pasted.match(/room\/([a-zA-Z0-9]{4,8})/i);
-    if (match) {
-      cleanCode = match[1];
-    } else {
-      cleanCode = pasted.replace(/[^a-zA-Z0-9]/g, '');
-    }
-    cleanCode = cleanCode.toUpperCase().slice(0, 6);
-    if (!cleanCode) return;
-
-    const newDigits = ['', '', '', '', '', ''];
-    for (let i = 0; i < cleanCode.length; i++) {
-      newDigits[i] = cleanCode[i];
-    }
-    setCodeDigits(newDigits);
-    setErrorMsg('');
-
-    const nextIndex = Math.min(cleanCode.length, 5);
-    inputRefs[nextIndex].current?.focus();
-  };
-
-  const fullCode = codeDigits.join('').trim().toUpperCase();
+  
+  const fullCode = joinCode.trim().toUpperCase();
 
   // Kapsül Kodu veya Eski PIN ile Katıl
   const handleJoinWithCode = async () => {
@@ -160,8 +107,8 @@ export default function Home() {
       setErrorMsg('Lütfen önce bir rumuz belirle!');
       return;
     }
-    if (fullCode.length < 4) {
-      setErrorMsg('Lütfen en az 4 veya 6 haneli Kapsül Kodunu eksiksiz gir.');
+    if (fullCode.length < 3) {
+      setErrorMsg('Lütfen geçerli bir Kapsül Kodu gir.');
       return;
     }
     if (!isSupabaseConfigured) {
@@ -630,35 +577,34 @@ export default function Home() {
           <div className="pt-2 border-t border-white/10 space-y-2.5">
             <div className="flex items-center justify-between text-xs text-neutral-400">
               <span className="font-bold">Bir Arkadaşının Kapsülüne Gir:</span>
-              <span className="font-mono text-[10px] text-[#CCFF00] font-black tracking-wider">6 HANELİ KAPSÜL KODU</span>
+              <span className="font-mono text-[10px] text-[#CCFF00] font-black tracking-wider">KAPSÜL KODU</span>
             </div>
 
-            <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-              {codeDigits.map((digit, idx) => (
-                <input
-                  key={idx}
-                  ref={inputRefs[idx]}
-                  type="text"
-                  maxLength={1}
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={digit}
-                  onPaste={handlePaste}
-                  onChange={(e) => handleDigitChange(idx, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(idx, e)}
-                  placeholder="•"
-                  className={`w-full h-12 text-center font-mono text-lg sm:text-xl font-black rounded-xl bg-black/50 border transition-all outline-none uppercase ${
-                    digit 
-                      ? 'border-[#CCFF00] text-[#CCFF00] bg-[#CCFF00]/10 ' 
-                      : 'border-white/15 text-white focus:border-[#CCFF00] focus:bg-white/5'
-                  }`}
-                />
-              ))}
+            
+            <div className="relative">
+              <input
+                type="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && handleJoinWithCode()}
+                placeholder="Kapsül kodunu buraya gir (Örn: I56XBR)..."
+                className="w-full h-14 text-center font-mono text-lg font-black rounded-xl bg-black/50 border border-white/15 text-white placeholder:text-neutral-600 focus:border-[#CCFF00] focus:bg-white/5 transition-all outline-none uppercase"
+              />
+              {joinCode.length > 0 && (
+                <button 
+                  onClick={() => setJoinCode('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <p className="text-[11px] text-neutral-400 text-center font-mono">
-              Arkadaşından aldığın 6 haneli Kapsül Kodunu yaz (örn: <span className="text-[#CCFF00] font-bold">I56XBR</span>) veya yapıştır.
+              Arkadaşından aldığın Kapsül Kodunu yaz (örn: <span className="text-[#CCFF00] font-bold">I56XBR</span>) veya yapıştır.
             </p>
 
             {fullCode.length >= 4 && (
