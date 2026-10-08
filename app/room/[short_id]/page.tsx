@@ -1527,8 +1527,20 @@ export default function RoomPage() {
   const toggleDisposableMode = async () => {
     if (!room) return;
     const newUnlocked = !room.is_unlocked;
-    await supabase.from('rooms').update({ is_unlocked: newUnlocked }).eq('id', room.id);
+    // Optimistic update
     setRoom({ ...room, is_unlocked: newUnlocked });
+    
+    try {
+      await fetch('/api/update-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: room.id, is_unlocked: newUnlocked }),
+      });
+    } catch (err) {
+      console.error('Failed to toggle lock', err);
+      // Revert on failure
+      setRoom({ ...room, is_unlocked: !newUnlocked });
+    }
   };
 
   const addReaction = (photoId: string, emoji: string) => {

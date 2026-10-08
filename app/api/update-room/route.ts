@@ -7,15 +7,24 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req: Request) {
   try {
-    const { id, spotify_url } = await req.json();
+    const { id, spotify_url, is_unlocked, location } = await req.json();
     
     if (!id) {
       return NextResponse.json({ error: 'Room ID is required' }, { status: 400 });
     }
 
+    const updates: any = {};
+    if (spotify_url !== undefined) updates.spotify_url = spotify_url;
+    if (is_unlocked !== undefined) updates.is_unlocked = is_unlocked;
+    if (location !== undefined) updates.location = location;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
+    }
+
     const { error } = await supabase
       .from('rooms')
-      .update({ spotify_url })
+      .update(updates)
       .eq('id', id);
       
     if (error) throw error;
