@@ -338,7 +338,7 @@ export default function AdminPage() {
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-neutral-300">{rooms.length}</p>
-                <p className="text-[11px] text-neutral-500 font-mono">AKTİF MASA</p>
+                <p className="text-[11px] text-neutral-500 font-mono">AKTİF KAPSÜL</p>
               </div>
             </div>
           </div>
@@ -373,7 +373,7 @@ export default function AdminPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xl font-black text-white">
-                              Masa: {room.short_id}
+                              Kapsül: {room.short_id}
                             </span>
                             <span className="text-xs font-mono font-bold bg-[#CCFF00]/10 text-[#CCFF00] px-2 py-0.5 rounded border border-[#CCFF00]/30">
                               PIN: {room.pin_hash}
