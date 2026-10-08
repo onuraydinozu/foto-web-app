@@ -19,6 +19,7 @@ export default function Home() {
   const [capsuleTitle, setCapsuleTitle] = useState('Pazar Dump\'ı 🍕');
   const [nickname, setNickname] = useState('');
   const [userCity, setUserCity] = useState('');
+  const [selectedDuration, setSelectedDuration] = useState<number>(48);
   const [codeDigits, setCodeDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
@@ -165,6 +166,10 @@ export default function Home() {
     // Kapsül başlığı location alanına yazılır
     const finalTitle = capsuleTitle.trim() || 'Günün Ortak Dump\'ı ✨';
 
+    // Seçilen kapsül süresi (24h, 48h, 1 hafta)
+    const durationHours = selectedDuration || 48;
+    const uploadLockedAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+
     const { data: room, error } = await supabase
       .from('rooms')
       .insert({
@@ -174,6 +179,7 @@ export default function Home() {
         is_unlocked: true,
         location: finalTitle,
         spotify_url: '',
+        upload_locked_at: uploadLockedAt,
       })
       .select()
       .single();
@@ -294,7 +300,13 @@ export default function Home() {
           className="absolute -top-4 -right-3 sm:-right-6 z-30 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF2E93] text-white font-black text-[11px] tracking-wider uppercase shadow-[0_8px_20px_rgba(255,46,147,0.4)] border-2 border-white/20 select-none cursor-default"
         >
           <Bomb className="w-3.5 h-3.5 shrink-0" />
-          <span>48H CLOUD CAPSULE 💣</span>
+          <span>
+            {selectedDuration === 24
+              ? '24H HIZLI DUMP ⚡'
+              : selectedDuration === 168
+              ? '7 GÜN SEYAHAT 🗓️'
+              : '48H CLOUD CAPSULE 💣'}
+          </span>
         </motion.div>
 
         {/* ANA GLASS KART */}
@@ -384,6 +396,40 @@ export default function Home() {
                 onChange={(e) => setUserCity(e.target.value)}
                 className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
               />
+            </div>
+          </div>
+
+          {/* Kapsülün Ömrü / Süresi */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
+                Kapsülün Süresi ⏳
+              </label>
+              <span className="text-[10px] text-neutral-400 font-mono">Süre bitince fotoğraflar uçar</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { hours: 24, label: '24 Saat', desc: '1 Günlük Hızlı', icon: '⚡' },
+                { hours: 48, label: '48 Saat', desc: '2 Günlük Klasik', icon: '💣' },
+                { hours: 168, label: '1 Hafta', desc: '7 Günlük Seyahat', icon: '🗓️' },
+              ].map((d) => (
+                <button
+                  key={d.hours}
+                  type="button"
+                  onClick={() => setSelectedDuration(d.hours)}
+                  className={`p-2.5 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                    selectedDuration === d.hours
+                      ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                      : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-base">{d.icon}</span>
+                  <span className={`font-black text-xs ${selectedDuration === d.hours ? 'text-[#CCFF00]' : 'text-neutral-200'}`}>
+                    {d.label}
+                  </span>
+                  <span className="text-[9px] text-neutral-400 font-mono leading-tight">{d.desc}</span>
+                </button>
+              ))}
             </div>
           </div>
 

@@ -109,7 +109,35 @@ export async function POST(req: Request) {
 // Fotoğraf Silme (DELETE) - R2 Fiziksel Silme + Supabase Kaydı Temizleme + Kalıcı Kara Liste
 export async function DELETE(req: Request) {
   try {
-    const { fileKey, photoId } = await req.json();
+    const body = await req.json();
+    const { fileKey, photoId, roomId, expirePurge } = body;
+
+    // Süre dolduğunda tüm odayı otomatik temizleme
+    if (expirePurge && roomId) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: roomPhotos } = await supabase.from('photos').select('id, r2_file_key').eq('room_id', roomId);
+        if (roomPhotos && roomPhotos.length > 0) {
+          for (const p of roomPhotos) {
+            if (p.r2_file_key) {
+              try {
+                await s3.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: p.r2_file_key }));
+              } catch (e) {}
+            }
+            if (p.id) addDeletedPhotoId(p.id);
+          }
+          await supabase.from('photos').delete().eq('room_id', roomId);
+        }
+        return NextResponse.json({ success: true, purged: roomPhotos?.length || 0 });
+      } catch (purgeErr) {
+        console.error("Expire purge hatası:", purgeErr);
+        return NextResponse.json({ error: "Oda temizlenemedi" }, { status: 500 });
+      }
+    }
+
     if (!fileKey && !photoId) {
       return NextResponse.json({ error: "Eksik parametre" }, { status: 400 });
     }

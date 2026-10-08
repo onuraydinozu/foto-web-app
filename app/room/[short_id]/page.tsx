@@ -204,6 +204,9 @@ export default function RoomPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
   const [timeLeft, setTimeLeft] = useState('47:59:59');
+  const [isExpired, setIsExpired] = useState(false);
+  const [hasPurgedExpired, setHasPurgedExpired] = useState(false);
+  const [dismissWarning, setDismissWarning] = useState(false);
 
   // Kullanıcı Rumuzu ve Şehri
   const [currentNickname, setCurrentNickname] = useState('');
@@ -579,37 +582,61 @@ export default function RoomPage() {
     } catch (err) {}
   };
 
-  // 48 saatlik geri sayım
+  // Dinamik Geri Sayım, Silinme Öncesi Uyarı & Otomatik Silme
   useEffect(() => {
     if (!room?.created_at) return;
 
     const interval = setInterval(() => {
       const created = new Date(room.created_at).getTime();
-      const expires = created + 48 * 60 * 60 * 1000;
+      const expires = room.upload_locked_at
+        ? new Date(room.upload_locked_at).getTime()
+        : created + 48 * 60 * 60 * 1000;
       const diff = expires - Date.now();
 
       if (diff <= 0) {
         setTimeLeft('00:00:00 (SÜRE DOLDU)');
+        setIsExpired(true);
+        if (!hasPurgedExpired) {
+          setHasPurgedExpired(true);
+          fetch('/api/upload', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expirePurge: true, roomId: room.id }),
+          }).catch(() => {});
+          setPhotos([]);
+        }
         clearInterval(interval);
         return;
       }
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      // Kapsülün toplam ömrü ve uyarı eşiği
+      const totalDurationMs = expires - created;
+      // 1 hafta (168h) için son 24 saat, 48h için son 3 saat, 24h için son 2 saat kala uyarı ver
+      const warningThreshold = totalDurationMs > 48 * 3600 * 1000 
+        ? 24 * 3600 * 1000 
+        : totalDurationMs > 24 * 3600 * 1000 
+        ? 3 * 3600 * 1000 
+        : 2 * 3600 * 1000;
 
-      // Son 2 saate girildiğinde Mini Recap bayrağını yak
-      if (diff <= 2 * 60 * 60 * 1000 && diff > 0) {
+      if (diff <= warningThreshold && diff > 0) {
         setIsClosingSoon(true);
       }
 
-      setTimeLeft(
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      );
+      const totalHours = Math.floor(diff / (1000 * 60 * 60));
+      const days = Math.floor(totalHours / 24);
+      const hours = totalHours % 24;
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) {
+        setTimeLeft(`${days}g ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+      } else {
+        setTimeLeft(`${String(totalHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [room?.created_at]);
+  }, [room?.created_at, room?.upload_locked_at, hasPurgedExpired]);
 
   const fetchData = async () => {
     const { data: roomData } = await supabase
@@ -1709,8 +1736,103 @@ export default function RoomPage() {
       </div>
 
       {/* ANA İÇERİK ALANI */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-5 pb-36 pb-[calc(8rem+env(safe-area-inset-bottom))] space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-5 pb-36 pb-[calc(8rem+env(safe-area-inset-bottom))] space-y-5">
         
+        {/* ========================================================
+            CANLI SPOTIFY OYNATICI (ODAYA GİRİNCE OTOMATİK ÇALMA)
+           ======================================================== */}
+        {(() => {
+          const activeSpotify = parseSpotifyTrack(room.spotify_url);
+          if (!activeSpotify) return null;
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl overflow-hidden border border-[#1DB954]/40 bg-[#12151F]/95 backdrop-blur-xl shadow-[0_0_30px_rgba(29,185,84,0.18)]"
+            >
+              <div className="px-3.5 py-1.5 bg-[#1DB954]/10 border-b border-[#1DB954]/20 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#1DB954] animate-ping shrink-0" />
+                  <span className="font-bold text-[#1DB954] flex items-center gap-1.5 text-xs">
+                    <Disc3 className="w-3.5 h-3.5 text-[#1DB954] animate-[spin_3s_linear_infinite]" />
+                    Kapsülün Şarkısı Çalıyor 🎵
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowSpotifyModal(true)}
+                  className="text-[11px] font-bold text-neutral-300 hover:text-white px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
+                >
+                  Şarkıyı Değiştir 🎧
+                </button>
+              </div>
+              <iframe
+                src={`https://open.spotify.com/embed/${activeSpotify.type}/${activeSpotify.id}?utm_source=generator&theme=0&autoplay=1`}
+                width="100%"
+                height="80"
+                frameBorder="0"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="eager"
+                className="w-full"
+              />
+            </motion.div>
+          );
+        })()}
+
+        {/* ========================================================
+            SİLİNMEDEN ÖNCEKİ GERİ SAYIM UYARI BANNERI
+           ======================================================== */}
+        {isClosingSoon && !dismissWarning && !isExpired && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl p-3 sm:p-4 bg-gradient-to-r from-red-500/20 via-amber-500/20 to-amber-600/15 border-2 border-amber-400 text-white shadow-[0_0_30px_rgba(245,158,11,0.25)] flex items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400 flex items-center justify-center text-amber-300 shrink-0">
+                <Clock className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-black text-xs sm:text-sm text-amber-300 flex items-center gap-1.5">
+                  ⚠️ Kapsülün Süresi Doluyor! Fotoğraflar Yakında Silinecek
+                </h4>
+                <p className="text-[11px] text-neutral-300 mt-0.5 leading-tight">
+                  Belirlenen süre bittiğinde tüm anılar kalıcı olarak uçacak. Kaybetmemek için hemen tek tıkla indir!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowBulkDownloadModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs flex items-center gap-1 shadow-md transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Fotoğrafları İndir</span>
+              </button>
+              <button
+                onClick={() => setDismissWarning(true)}
+                className="p-1 rounded-full text-neutral-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ========================================================
+            SÜRE DOLDU VE FOTOĞRAFLAR SİLİNDİ BİLDİRİMİ
+           ======================================================== */}
+        {isExpired && (
+          <div className="p-6 sm:p-8 rounded-3xl bg-red-950/40 border-2 border-red-500/40 text-center space-y-2 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center mx-auto text-xl">
+              ⏳
+            </div>
+            <h3 className="text-lg font-black text-white">Kapsülün Belirlenen Süresi Doldu</h3>
+            <p className="text-xs text-neutral-300 max-w-sm mx-auto leading-relaxed">
+              Kapsül için belirlenen süre tamamlandığı için tüm fotoğraflar kalıcı ve güvenli şekilde silindi.
+            </p>
+          </div>
+        )}
+
         {/* Kullanıcı Kimliği & Canlı Varlık & Günün Kapağı Şeridi */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 sm:p-3 rounded-2xl bg-[#12151F]/60 backdrop-blur-xl border border-white/10 text-xs shadow-lg">
           {/* Sol: Kullanıcı Rumuzu */}
