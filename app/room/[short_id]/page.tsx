@@ -11,7 +11,7 @@ import confetti from 'canvas-confetti';
 import { 
   Download, Clock, MapPin, QrCode, Plus, Lock, Unlock, 
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
-  Music, Check, UploadCloud, Flame, Camera, Users,
+  Music, Check, UploadCloud, Flame, Camera, Users, Trophy,
   Trash2, CheckSquare, Square, FileDown, Layers,
   Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut
 } from 'lucide-react';
