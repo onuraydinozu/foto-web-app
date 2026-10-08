@@ -412,7 +412,7 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2.5">
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
                   Rumuzun <span className="text-[#FF2E93]">*</span>
@@ -426,7 +426,7 @@ export default function Home() {
                     setNickname(e.target.value);
                     setErrorMsg('');
                   }}
-                  className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
+                  className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3.5 sm:py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
                 />
               </div>
 
@@ -440,21 +440,21 @@ export default function Home() {
                   value={userCity}
                   maxLength={25}
                   onChange={(e) => setUserCity(e.target.value)}
-                  className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
+                  className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3.5 sm:py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
                 />
               </div>
             </div>
           )}
 
           {/* Kapsülün Ömrü / Süresi */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
                 Kapsülün Süresi ⏳
               </label>
-              <span className="text-[10px] text-neutral-400 font-mono">Süre bitince fotoğraflar uçar</span>
+              <span className="text-[10px] text-neutral-400 font-mono hidden sm:inline">Süre bitince uçar</span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {[
                 { hours: 24, label: '24 Saat', desc: '1 Günlük Hızlı', icon: '⚡' },
                 { hours: 48, label: '48 Saat', desc: '2 Günlük Klasik', icon: '💣' },

@@ -11,7 +11,7 @@ import confetti from 'canvas-confetti';
 import { 
   Download, Clock, MapPin, QrCode, Plus, Lock, Unlock, 
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
-  Music, Check, UploadCloud, Flame, Camera,
+  Music, Check, UploadCloud, Flame, Camera, Users,
   Trash2, CheckSquare, Square, FileDown, Layers,
   Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut
 } from 'lucide-react';
@@ -187,6 +187,7 @@ export default function RoomPage() {
 
   // Canlı Varlık Sayacı (Supabase Realtime Presence)
   const [activeViewers, setActiveViewers] = useState<number>(1);
+  const [liveViewers, setLiveViewers] = useState<string[]>([]);
   const channelRef = useRef<any>(null);
   const serverDeletedSet = useRef<Set<string>>(new Set());
 
@@ -256,6 +257,7 @@ export default function RoomPage() {
   const [youtubeSaving, setYoutubeSaving] = useState(false);
   const [youtubeResults, setYoutubeResults] = useState<any[]>([]);
   const [isYoutubeSearching, setIsYoutubeSearching] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
 
   // Yükleme Durumu & Sürükle Bırak Ekranı
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -411,6 +413,7 @@ export default function RoomPage() {
         nick: topUploader || 'Anonim',
         count: maxUploads,
       },
+      uploaderCounts,
       card2,
       card3,
     };
@@ -471,20 +474,24 @@ export default function RoomPage() {
     });
     channelRef.current = channel;
 
+    const updateLiveViewers = (state: any) => {
+      const keys = Object.keys(state);
+      setActiveViewers(Math.max(1, keys.length));
+      
+      const nicks = new Set<string>();
+      keys.forEach((key) => {
+        if (key.startsWith('guest_')) return;
+        // format is: nickname_random
+        const nick = key.split('_').slice(0, -1).join('_');
+        if (nick) nicks.add(nick);
+      });
+      setLiveViewers(Array.from(nicks));
+    };
+
     channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const count = Object.keys(state).length;
-        setActiveViewers(Math.max(1, count));
-      })
-      .on('presence', { event: 'join' }, () => {
-        const state = channel.presenceState();
-        setActiveViewers(Math.max(1, Object.keys(state).length));
-      })
-      .on('presence', { event: 'leave' }, () => {
-        const state = channel.presenceState();
-        setActiveViewers(Math.max(1, Object.keys(state).length));
-      })
+      .on('presence', { event: 'sync' }, () => updateLiveViewers(channel.presenceState()))
+      .on('presence', { event: 'join' }, () => updateLiveViewers(channel.presenceState()))
+      .on('presence', { event: 'leave' }, () => updateLiveViewers(channel.presenceState()))
       .on('broadcast', { event: 'reaction' }, ({ payload }) => {
         if (payload?.photoId && payload?.emoji) {
           setReactions((prev) => ({
@@ -1760,6 +1767,18 @@ export default function RoomPage() {
               <span>{timeLeft}</span>
             </div>
 
+            {/* KATILIMCILAR BUTONU */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowParticipantsModal(true)}
+              title="Kapsüldekiler"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-neutral-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+            >
+              <Users className="w-3.5 h-3.5 text-[#FF2E93]" />
+              <span className="hidden sm:inline">Kişiler</span>
+            </motion.button>
+
             {/* KAPSÜL KAPANIŞ RAPORU (MINI RECAP BUTONU) */}
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -2664,6 +2683,78 @@ export default function RoomPage() {
                   Kapsüle Dal 🚀
                 </button>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* KATILIMCILAR MODALI */}
+      <AnimatePresence>
+        {showParticipantsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setShowParticipantsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#12151F] border border-white/15 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2 text-white font-black text-lg">
+                  <Users className="w-5 h-5 text-[#FF2E93]" />
+                  <h3>Kapsüldekiler</h3>
+                </div>
+                <button
+                  onClick={() => setShowParticipantsModal(false)}
+                  className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="max-h-60 overflow-y-auto pr-1 space-y-2">
+                {(() => {
+                  const activeNicks = new Set(liveViewers);
+                  const uploadedNicks = Object.keys(recapData?.uploaderCounts || {});
+                  
+                  // Merge live and uploaded, prioritizing live
+                  const allParticipants = new Set([...activeNicks, ...uploadedNicks]);
+                  
+                  if (allParticipants.size === 0) {
+                    return <p className="text-sm text-neutral-500 text-center py-4">Henüz kimse yok.</p>;
+                  }
+
+                  return Array.from(allParticipants).map((nick, idx) => {
+                    const isLive = activeNicks.has(nick);
+                    const hasUploaded = uploadedNicks.includes(nick);
+                    const uploadedData = recapData?.uploaderCounts[nick];
+                    
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-neutral-600'}`} />
+                          <div>
+                            <p className="text-sm font-bold text-white leading-tight">{nick}</p>
+                            {uploadedData?.display && uploadedData.display !== nick && (
+                              <p className="text-[10px] text-neutral-500 mt-0.5">{uploadedData.display}</p>
+                            )}
+                          </div>
+                        </div>
+                        {hasUploaded && (
+                          <span className="text-[10px] font-black bg-[#CCFF00]/10 text-[#CCFF00] px-2 py-0.5 rounded-full border border-[#CCFF00]/20">
+                            {uploadedData?.count} Katkı
+                          </span>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </motion.div>
           </motion.div>
         )}
