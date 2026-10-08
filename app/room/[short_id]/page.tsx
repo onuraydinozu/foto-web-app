@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import exifr from 'exifr';
 import PollsCard from '@/components/PollsCard';
+import YoutubePlayer from '@/components/YoutubePlayer';
 import SwipeCuratorModal from '@/components/SwipeCuratorModal';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
 
@@ -1808,44 +1809,7 @@ export default function RoomPage() {
         {(() => {
           if (!room.spotify_url?.startsWith('yt:')) return null;
           const videoId = room.spotify_url.replace('yt:', '');
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl overflow-hidden border border-[#FF2E93]/30 bg-black/40 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between p-2.5 sm:p-3 gap-3 shadow-[0_0_25px_rgba(255,46,147,0.15)]"
-            >
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="w-[120px] shrink-0 aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=1&modestbranding=1`}
-                    title="Kapsül Müziği"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    className="w-full h-full"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF2E93] animate-pulse" />
-                    <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-[#FF2E93]">Canlı Müzik</span>
-                  </div>
-                  <p className="text-white text-xs sm:text-sm font-black flex items-center gap-1.5">
-                    <Disc3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white animate-[spin_3s_linear_infinite]" />
-                    Kapsülün Şarkısı Çalıyor
-                  </p>
-                </div>
-              </div>
-              
-              <button
-                onClick={() => setShowYoutubeModal(true)}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
-              >
-                <Music className="w-3.5 h-3.5" />
-                Şarkıyı Değiştir
-              </button>
-            </motion.div>
-          );
+          return <YoutubePlayer videoId={videoId} onOpenModal={() => setShowYoutubeModal(true)} />;
         })()}
 
         {/* ========================================================
