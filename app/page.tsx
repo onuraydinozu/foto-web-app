@@ -300,7 +300,7 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-center items-center p-4 sm:p-6 pb-20 overflow-hidden selection:bg-[#CCFF00] selection:text-black">
+    <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-start sm:justify-center items-center pt-24 sm:pt-6 p-4 sm:p-6 pb-20 overflow-x-hidden overflow-y-auto selection:bg-[#CCFF00] selection:text-black">
       
       {/* AUTH MODALI */}
       <AnimatePresence>
@@ -405,7 +405,7 @@ export default function Home() {
 
       {/* 2. UÇUŞAN UZAKTAN DUMP POLAROID'LERİ */}
       <motion.div
-        initial={{ y: -40, opacity: 0, rotate: -18 }}
+        initial={{ y: -40, rotate: -18 }}
         animate={{ y: 0, opacity: 0.85, rotate: -12 }}
         whileHover={{ scale: 1.05, rotate: -8, opacity: 1, zIndex: 30 }}
         transition={{ type: 'spring', damping: 15 }}
@@ -427,7 +427,7 @@ export default function Home() {
       </motion.div>
 
       <motion.div
-        initial={{ y: -40, opacity: 0, rotate: 16 }}
+        initial={{ y: -40, rotate: 16 }}
         animate={{ y: 0, opacity: 0.85, rotate: 9 }}
         whileHover={{ scale: 1.05, rotate: 4, opacity: 1, zIndex: 30 }}
         transition={{ type: 'spring', damping: 15, delay: 0.1 }}
@@ -453,7 +453,7 @@ export default function Home() {
         {user ? (
           <AnimatePresence>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               className="bg-[#12151F]/90 backdrop-blur-xl rounded-[2rem] border border-[#CCFF00]/20 p-5 shadow-[0_0_30px_rgba(204,255,0,0.1)] relative"
             >
@@ -562,7 +562,7 @@ export default function Home() {
 
         {/* ANA GLASS KART */}
         <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          initial={{ scale: 0.95, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 140 }}
           className="relative bg-white/[0.04] backdrop-blur-2xl border border-white/15 rounded-[32px] p-6 sm:p-8 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.9)] space-y-5 overflow-hidden"
