@@ -25,6 +25,8 @@ export const metadata: Metadata = {
   },
 };
 
+import BackgroundAnimations from "@/components/BackgroundAnimations";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,6 +40,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-full bg-[#090A0F] text-[#F3F4F6] antialiased select-none">
+        <BackgroundAnimations />
         {children}
       </body>
     </html>
