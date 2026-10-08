@@ -128,40 +128,46 @@ function getBestAudioMimeType(): { mimeType: string; ext: string } {
 }
 
 const SPOTIFY_PRESETS = [
-  { title: 'Starboy', artist: 'The Weeknd & Daft Punk', id: '4cODK2wGLETKBW3PvgPWqT', emoji: '🌟' },
-  { title: 'Blinding Lights', artist: 'The Weeknd', id: '0VjIjW4GlUZAMYd2vXMi3b', emoji: '✨' },
-  { title: 'Do I Wanna Know?', artist: 'Arctic Monkeys', id: '5FVd6KXrgO9B3ugmC08eG9', emoji: '🎸' },
-  { title: 'As It Was', artist: 'Harry Styles', id: '4Dvkj6JhhA12EX05QKi792', emoji: '⚡' },
-  { title: 'Antidepresan', artist: 'Mert Demir & Mabel Matiz', id: '6q3e9jC9WqFq1XFm4L3ZqB', emoji: '🔥' },
-  { title: 'Aşkın Olayım', artist: 'Simge', id: '2oE2M2Uf6x1h01R2r8H05f', emoji: '🌙' },
-  { title: 'Dursun Zaman', artist: 'Manga', id: '3w2dGg94E03yVq2V2c6o0m', emoji: '🌊' },
-  { title: 'Get Lucky', artist: 'Daft Punk', id: '69kOkLUCkxIZYexIgSG8rq', emoji: '🍕' },
+  { type: 'playlist' as const, id: '37i9dQZF1DXcBWIGoYBM5M', title: "Today's Top Hits", subtitle: 'Küresel Zirve Parçalar', emoji: '🌍', category: 'playlist' },
+  { type: 'playlist' as const, id: '37i9dQZF1DWY7IeIP1cdjF', title: 'Hot Vibe & Latin Hits', subtitle: 'Baila & Hareketli Ritimler', emoji: '🔥', category: 'playlist' },
+  { type: 'playlist' as const, id: '37i9dQZF1DX0XUsuxWHRQd', title: 'RapCaviar', subtitle: 'En İyi Hip Hop / Rap', emoji: '🎤', category: 'playlist' },
+  { type: 'playlist' as const, id: '37i9dQZF1DX4dyzvuaRJ0n', title: 'mint Party', subtitle: 'Elektronik & Dans Müziği', emoji: '⚡', category: 'playlist' },
+  { type: 'playlist' as const, id: '37i9dQZF1DX4sWSpwq3LiO', title: 'Peaceful Piano', subtitle: 'Sakin & Akustik Ortam', emoji: '☕', category: 'playlist' },
+  { type: 'track' as const, id: '7GtO6G2Iue3yfIYhx36JZn', title: 'Macacoa 2000', subtitle: 'GTA VI Sound Hit', emoji: '🌟', category: 'track' },
+  { type: 'track' as const, id: '70cHKK8bHAfJrOGVnfRG9J', title: 'Nicole Kidman', subtitle: 'Indie & Alternative', emoji: '🎸', category: 'track' },
+  { type: 'track' as const, id: '11hcBLPtbMp4aQI6zGQLub', title: 'Patient Zero', subtitle: 'Pop Vibe', emoji: '✨', category: 'track' },
+  { type: 'track' as const, id: '5BsvzSvw98mLqpZznMjuLX', title: 'ZIZI', subtitle: 'Enerjik Ritim', emoji: '🍕', category: 'track' },
 ];
 
-function parseSpotifyTrack(input: string): { type: 'track' | 'playlist' | 'album'; id: string } | null {
+function parseSpotifyTrack(input: string): { type: 'track' | 'playlist' | 'album' | 'artist'; id: string } | null {
   if (!input) return null;
   const trimmed = input.trim();
 
-  const foundPreset = SPOTIFY_PRESETS.find(
-    (p) =>
-      p.id === trimmed ||
-      `${p.title} - ${p.artist}`.toLowerCase() === trimmed.toLowerCase() ||
-      p.title.toLowerCase() === trimmed.toLowerCase()
-  );
-  if (foundPreset) {
-    return { type: 'track', id: foundPreset.id };
-  }
-
-  const urlMatch = trimmed.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|playlist|album)\/([a-zA-Z0-9]+)/i);
+  // URL eşleme (open.spotify.com/track/..., open.spotify.com/intl-tr/playlist/..., vb.)
+  const urlMatch = trimmed.match(/open\.spotify\.com\/(?:[a-zA-Z0-9-]+\/)?(track|playlist|album|artist)\/([a-zA-Z0-9]+)/i);
   if (urlMatch) {
     return { type: urlMatch[1] as any, id: urlMatch[2] };
   }
 
-  const uriMatch = trimmed.match(/spotify:(track|playlist|album):([a-zA-Z0-9]+)/i);
+  // URI eşleme (spotify:track:..., spotify:playlist:...)
+  const uriMatch = trimmed.match(/spotify:(track|playlist|album|artist):([a-zA-Z0-9]+)/i);
   if (uriMatch) {
     return { type: uriMatch[1] as any, id: uriMatch[2] };
   }
 
+  // Preset listesinde isim veya ID eşleme
+  const foundPreset = SPOTIFY_PRESETS.find(
+    (p) =>
+      p.id === trimmed ||
+      `${p.title} - ${p.subtitle}`.toLowerCase() === trimmed.toLowerCase() ||
+      p.title.toLowerCase() === trimmed.toLowerCase() ||
+      (trimmed.length >= 3 && p.title.toLowerCase().includes(trimmed.toLowerCase()))
+  );
+  if (foundPreset) {
+    return { type: foundPreset.type, id: foundPreset.id };
+  }
+
+  // Ham 22 karakterlik Spotify ID
   if (/^[a-zA-Z0-9]{22}$/.test(trimmed)) {
     return { type: 'track', id: trimmed };
   }
@@ -1537,19 +1543,18 @@ export default function RoomPage() {
       </AnimatePresence>
 
       {/* DYNAMIC ISLAND ÜST KAPSÜL */}
-      {/* DYNAMIC ISLAND ÜST KAPSÜL */}
       <div className="sticky top-2 sm:top-3 z-40 px-2 sm:px-6 w-full max-w-4xl mx-auto">
         <motion.header
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="rounded-full bg-[#12151F]/85 backdrop-blur-2xl border border-white/15 px-2.5 py-1.5 sm:px-5 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-between gap-1.5 sm:gap-2"
+          className="rounded-full bg-[#12151F]/90 backdrop-blur-2xl border border-white/15 px-2 sm:px-4 py-1.5 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-between gap-1 sm:gap-2"
         >
           {/* Sol Kısım: Kapsül Başlığı & KOD */}
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse shrink-0" />
-              <span className="font-black text-xs sm:text-sm tracking-wide text-white truncate max-w-[85px] xs:max-w-[120px] sm:max-w-[180px]">
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-white/5 border border-white/10 shrink-0">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#CCFF00] animate-pulse shrink-0" />
+              <span className="font-black text-[11px] sm:text-sm tracking-wide text-white truncate max-w-[70px] xs:max-w-[105px] sm:max-w-[170px]">
                 {capsuleName}
               </span>
             </div>
@@ -1563,15 +1568,36 @@ export default function RoomPage() {
                 alert(`Kapsül Kodu kopyalandı: ${room.short_id}`);
               }}
               title="Kapsül Kodunu Kopyala"
-              className="flex items-center gap-1 text-[11px] sm:text-xs px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-neutral-200 font-mono font-bold transition shrink-0 cursor-pointer"
+              className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-neutral-200 font-mono font-bold transition shrink-0 cursor-pointer"
             >
-              <span className="text-[9px] sm:text-[10px] text-neutral-400">KOD:</span>
+              <span className="hidden xs:inline text-[9px] text-neutral-400">KOD:</span>
               <span className="text-[#CCFF00] font-black tracking-wider">{room.short_id}</span>
             </motion.button>
           </div>
 
-          {/* Sağ Kısım: Davet Linki, Spotify, Geri Sayım, QR */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Sağ Kısım: Davet Linki, Spotify, Geri Sayım, Recap, QR */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* SPOTIFY VIBE BUTONU */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setCustomTrack(room.spotify_url || '');
+                setShowSpotifyModal(true);
+              }}
+              title="Kapsülün Şarkısını Dinle & Değiştir"
+              className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                room.spotify_url
+                  ? 'bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border-[#1DB954]/50 text-[#1DB954]'
+                  : 'bg-white/5 hover:bg-white/10 border-white/15 text-neutral-300'
+              }`}
+            >
+              <Disc3 className={`w-3.5 h-3.5 shrink-0 ${room.spotify_url ? 'text-[#1DB954] animate-[spin_3s_linear_infinite]' : 'text-neutral-400'}`} />
+              <span className="hidden md:inline max-w-[90px] truncate">
+                {room.spotify_url ? 'Müzik' : 'Şarkı'}
+              </span>
+            </motion.button>
+
             {/* TEK TIKLA DAVET LİNKİ BUTONU */}
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -1582,35 +1608,14 @@ export default function RoomPage() {
                 alert('Davet linki ve 6 haneli kod kopyalandı! WhatsApp grubuna atarak arkadaşlarını direkt odaya topla. ⚡');
               }}
               title="Davet Linkini ve Kodu Kopyala"
-              className="flex items-center gap-1 text-xs px-2 sm:px-3 py-1 rounded-full bg-[#CCFF00]/15 hover:bg-[#CCFF00]/25 border border-[#CCFF00]/30 text-[#CCFF00] font-bold transition cursor-pointer"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-[#CCFF00]/15 hover:bg-[#CCFF00]/25 border border-[#CCFF00]/30 text-[#CCFF00] font-bold text-xs flex items-center gap-1 transition cursor-pointer shrink-0"
             >
               <Share2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline">Linki Kopyala</span>
-            </motion.button>
-
-            {/* SPOTIFY VIBE (MOBİL VE MASAÜSTÜ İÇİN ERİŞİLEBİLİR) */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setCustomTrack(room.spotify_url || '');
-                setShowSpotifyModal(true);
-              }}
-              title="Kapsülün Şarkısını Dinle & Değiştir"
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full border text-xs font-bold transition cursor-pointer ${
-                room.spotify_url
-                  ? 'bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border-[#1DB954]/50 text-[#1DB954]'
-                  : 'bg-[#7928CA]/20 hover:bg-[#7928CA]/30 border-[#7928CA]/40 text-violet-300'
-              }`}
-            >
-              <Disc3 className={`w-3.5 h-3.5 shrink-0 ${room.spotify_url ? 'text-[#1DB954] animate-[spin_3s_linear_infinite]' : 'text-neutral-400'}`} />
-              <span className="max-w-[75px] sm:max-w-[120px] truncate">
-                {room.spotify_url ? 'Şarkı Çalıyor 🎵' : 'Şarkı Seç 🎵'}
-              </span>
+              <span className="hidden sm:inline">Paylaş</span>
             </motion.button>
 
             {/* GERİ SAYIM */}
-            <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full bg-[#FF2E93]/15 border border-[#FF2E93]/35 text-[#FF2E93] text-[11px] sm:text-xs font-mono font-black shrink-0">
+            <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-full bg-[#FF2E93]/15 border border-[#FF2E93]/35 text-[#FF2E93] text-[10px] sm:text-xs font-mono font-black shrink-0">
               <Clock className="w-3 h-3 shrink-0" />
               <span>{timeLeft}</span>
             </div>
@@ -1629,14 +1634,14 @@ export default function RoomPage() {
                 });
               }}
               title="Kapsül Kapanış Raporu (Mini Recap)"
-              className={`flex items-center gap-1 text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 rounded-full font-bold transition cursor-pointer shrink-0 ${
+              className={`p-1.5 sm:px-2 sm:py-1 rounded-full text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1 ${
                 isClosingSoon
                   ? 'bg-amber-500/25 border border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-pulse'
                   : 'bg-white/5 hover:bg-white/15 border border-white/10 text-neutral-300'
               }`}
             >
               <span className="text-xs">🏆</span>
-              <span className="hidden xs:inline">Recap</span>
+              <span className="hidden sm:inline">Recap</span>
             </motion.button>
 
             {/* QR KOD */}
@@ -1645,7 +1650,7 @@ export default function RoomPage() {
               className="p-1.5 sm:p-2 rounded-full bg-white/10 border border-white/15 text-neutral-200 hover:text-white transition cursor-pointer shrink-0"
               title="QR Kod"
             >
-              <QrCode className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-[#CCFF00]" />
+              <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#CCFF00]" />
             </button>
           </div>
         </motion.header>
@@ -2507,9 +2512,9 @@ export default function RoomPage() {
                 return (
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1">
                     <Disc3 className="w-7 h-7 text-neutral-400 mx-auto" />
-                    <p className="text-xs font-bold text-white">Şu an seçili şarkı yok</p>
+                    <p className="text-xs font-bold text-white">Şu an seçili müzik yok</p>
                     <p className="text-[11px] text-neutral-400">
-                      Aşağıdaki trend parçalardan birine dokun veya kendi Spotify linkini yapıştır!
+                      Aşağıdaki hazır trend listelerden birine dokun veya kendi Spotify linkini yapıştır!
                     </p>
                   </div>
                 );
@@ -2517,16 +2522,19 @@ export default function RoomPage() {
 
               {/* HIZLI SEÇİM (TREND PRESETLER) */}
               <div className="space-y-2 pt-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-                  ⚡ Popüler Trend Parçalar
-                </p>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                    ⚡ Popüler Çalma Listeleri & Parçalar
+                  </p>
+                  <span className="text-[10px] text-neutral-500 font-mono">1-Tıkla Başlat</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
                   {SPOTIFY_PRESETS.map((item) => {
                     const isCurrent = room.spotify_url && room.spotify_url.includes(item.id);
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleSaveSpotify(`https://open.spotify.com/track/${item.id}`)}
+                        onClick={() => handleSaveSpotify(`https://open.spotify.com/${item.type}/${item.id}`)}
                         disabled={spotifySaving}
                         className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 text-xs font-medium cursor-pointer ${
                           isCurrent
@@ -2537,7 +2545,7 @@ export default function RoomPage() {
                         <span className="text-base shrink-0">{item.emoji}</span>
                         <div className="truncate min-w-0">
                           <p className="font-bold text-[12px] truncate leading-tight text-white">{item.title}</p>
-                          <p className="text-[10px] text-neutral-400 truncate leading-tight mt-0.5">{item.artist}</p>
+                          <p className="text-[10px] text-neutral-400 truncate leading-tight mt-0.5">{item.subtitle}</p>
                         </div>
                       </button>
                     );
@@ -2545,23 +2553,40 @@ export default function RoomPage() {
                 </div>
               </div>
 
-              {/* ÖZEL LİNK GİRME */}
+              {/* ÖZEL LİNK GİRME / ARAMA */}
               <div className="space-y-2 pt-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-                  🔗 Veya Kendi Spotify Linkini Yapıştır
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                    🔗 Kendi Spotify Linkini Yapıştır veya Ara
+                  </p>
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="https://open.spotify.com/track/..."
+                    placeholder="Spotify linki (şarkı/playlist) veya şarkı adı..."
                     value={customTrack}
                     onChange={(e) => setCustomTrack(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && customTrack.trim()) {
+                        const parsed = parseSpotifyTrack(customTrack.trim());
+                        if (parsed) {
+                          handleSaveSpotify(`https://open.spotify.com/${parsed.type}/${parsed.id}`);
+                        } else {
+                          window.open(`https://open.spotify.com/search/${encodeURIComponent(customTrack.trim())}`, '_blank');
+                        }
+                      }
+                    }}
                     className="flex-1 bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:border-[#1DB954]"
                   />
                   <button
                     onClick={() => {
-                      if (customTrack.trim()) {
-                        handleSaveSpotify(customTrack.trim());
+                      if (!customTrack.trim()) return;
+                      const parsed = parseSpotifyTrack(customTrack.trim());
+                      if (parsed) {
+                        handleSaveSpotify(`https://open.spotify.com/${parsed.type}/${parsed.id}`);
+                      } else {
+                        window.open(`https://open.spotify.com/search/${encodeURIComponent(customTrack.trim())}`, '_blank');
+                        alert(`"${customTrack.trim()}" için Spotify arama sayfası açıldı! Beğendiğin şarkının linkini kopyalayıp buraya yapıştırabilirsin. 🎵`);
                       }
                     }}
                     disabled={spotifySaving || !customTrack.trim()}
