@@ -177,7 +177,7 @@ const Uploader = forwardRef<UploaderHandle, UploaderProps>(({
             ? 'border-red-900/60 bg-red-950/10 cursor-not-allowed'
             : dragActive
             ? 'border-[#CCFF00] bg-[#CCFF00]/10 scale-[1.01]'
-            : 'border-white/10 hover:border-white/20 bg-[#12151F]/60 backdrop-blur-xl cursor-pointer'
+            : 'border-white/10 hover:border-white/20 bg-[#12151F]/60 backdrop-blur-sm cursor-pointer'
         }`}
       >
         <AnimatePresence mode="wait">

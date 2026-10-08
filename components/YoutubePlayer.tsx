@@ -33,7 +33,7 @@ export default function YoutubePlayer({ videoId, onOpenModal }: { videoId: strin
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[1.25rem] overflow-hidden border border-[#FF2E93]/30 bg-[#12151F]/80 backdrop-blur-2xl flex flex-col sm:flex-row items-center justify-between p-2 sm:p-2.5 gap-3 shadow-[0_0_30px_rgba(255,46,147,0.15)] relative"
+      className="rounded-[1.25rem] overflow-hidden border border-[#FF2E93]/30 bg-[#12151F]/80 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between p-2 sm:p-2.5 gap-3 shadow-[0_0_30px_rgba(255,46,147,0.15)] relative"
     >
       <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
         

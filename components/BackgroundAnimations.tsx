@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 const CoffeeCupSVG = () => (
-  <svg width="200" height="250" viewBox="0 0 200 250" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_15px_30px_rgba(255,255,255,0.1)]">
+  <svg width="200" height="250" viewBox="0 0 200 250" fill="none" xmlns="http://www.w3.org/2000/svg" >
     {/* Lid */}
     <path d="M40 50 L160 50 L155 30 C150 20 50 20 45 30 Z" fill="#ffffff" stroke="#ddd" strokeWidth="4"/>
     <path d="M30 50 L170 50 L170 55 L30 55 Z" fill="#fff" />
@@ -21,7 +21,7 @@ const CoffeeCupSVG = () => (
 );
 
 const GhostSVG = () => (
-  <svg width="180" height="180" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]">
+  <svg width="180" height="180" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg" >
     <path d="M30 140 L30 75 C30 25 120 25 120 75 L120 140 L105 125 L90 140 L75 125 L60 140 L45 125 Z" fill="#F5F5F5" />
     <circle cx="60" cy="65" r="9" fill="#111" />
     <circle cx="90" cy="65" r="9" fill="#111" />
@@ -33,7 +33,7 @@ const GhostSVG = () => (
 );
 
 const PumpkinSVG = () => (
-  <svg width="200" height="190" viewBox="0 0 160 150" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_20px_40px_rgba(255,117,24,0.3)]">
+  <svg width="200" height="190" viewBox="0 0 160 150" fill="none" xmlns="http://www.w3.org/2000/svg" >
     <ellipse cx="80" cy="85" rx="70" ry="55" fill="#E65100" />
     <ellipse cx="80" cy="85" rx="45" ry="55" fill="#EF6C00" />
     <ellipse cx="80" cy="85" rx="20" ry="55" fill="#F57C00" />
@@ -48,7 +48,7 @@ const PumpkinSVG = () => (
 );
 
 const SpiderSVG = () => (
-  <svg width="150" height="150" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_15px_25px_rgba(0,0,0,0.5)]">
+  <svg width="150" height="150" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" >
     <line x1="60" y1="0" x2="60" y2="40" stroke="#fff" strokeWidth="2" opacity="0.15" strokeDasharray="4 4" />
     {/* Legs Left */}
     <path d="M45 60 Q20 40 10 60" stroke="#1A1A1A" strokeWidth="6" fill="none" strokeLinecap="round" />
@@ -68,7 +68,7 @@ const SpiderSVG = () => (
 );
 
 const LeafSVG = () => (
-  <svg width="120" height="140" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_10px_20px_rgba(217,83,79,0.25)]">
+  <svg width="120" height="140" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" >
     <path d="M50 110 C 50 110, 15 80, 5 45 C -5 10, 45 5, 50 5 C 55 5, 105 10, 95 45 C 85 80, 50 110, 50 110 Z" fill="#D9534F" />
     <path d="M50 5 L50 110" stroke="#A93226" strokeWidth="4" opacity="0.6" strokeLinecap="round" />
     <path d="M50 50 L20 35" stroke="#A93226" strokeWidth="4" opacity="0.6" strokeLinecap="round" />
@@ -85,13 +85,13 @@ export default function BackgroundAnimations() {
   useEffect(() => {
     // Sadece client side'da oluştur
     const generateItems = () => {
-      const newItems = Array.from({ length: 12 }).map((_, i) => {
+      const newItems = Array.from({ length: 4 }).map((_, i) => {
         const DrawingComponent = DRAWINGS[Math.floor(Math.random() * DRAWINGS.length)];
         return {
           id: i,
           Component: DrawingComponent,
           left: Math.random() * 100, // % olarak
-          duration: Math.random() * 20 + 20, // 20-40 saniye arası (yavaş)
+          duration: Math.random() * 40 + 40, // 20-40 saniye arası (yavaş)
           delay: Math.random() * 15,
           scale: Math.random() * 0.8 + 0.8, // 0.8x - 1.6x büyüklük
         };
@@ -105,7 +105,7 @@ export default function BackgroundAnimations() {
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-[0.25]">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-[0.10]">
       {items.map((item) => (
         <motion.div
           key={item.id}

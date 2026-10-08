@@ -1683,7 +1683,7 @@ export default function RoomPage() {
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
             className="fixed top-5 inset-x-0 z-50 flex justify-center pointer-events-none px-4"
           >
-            <div className="bg-[#12151F]/90 backdrop-blur-2xl border-2 border-[#CCFF00] text-white px-5 py-2.5 rounded-full shadow-[0_10px_40px_rgba(204,255,0,0.4)] flex items-center gap-2 text-xs sm:text-sm font-black">
+            <div className="bg-[#12151F]/90 backdrop-blur-sm border-2 border-[#CCFF00] text-white px-5 py-2.5 rounded-full shadow-[0_10px_40px_rgba(204,255,0,0.4)] flex items-center gap-2 text-xs sm:text-sm font-black">
               <Sparkles className="w-4 h-4 text-[#CCFF00] animate-spin" />
               <span>{liveToast.msg}</span>
             </div>
@@ -1698,7 +1698,7 @@ export default function RoomPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#08090E]/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 border-4 border-dashed border-[#CCFF00]"
+            className="fixed inset-0 z-50 bg-[#08090E]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 border-4 border-dashed border-[#CCFF00]"
           >
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
@@ -1721,7 +1721,7 @@ export default function RoomPage() {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="rounded-[1.5rem] bg-[#12151F]/90 backdrop-blur-2xl border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex flex-col gap-2.5"
+          className="rounded-[1.5rem] bg-[#12151F]/90 backdrop-blur-sm border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex flex-col gap-2.5"
         >
           {/* ÜST SATIR: Çıkış, Başlık, Aksiyonlar */}
           <div className="flex items-center justify-between gap-2 w-full">
@@ -1894,7 +1894,7 @@ export default function RoomPage() {
         )}
 
         {/* Kullanıcı Kimliği & Canlı Varlık & Günün Kapağı Şeridi */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 sm:p-3 rounded-2xl bg-[#12151F]/60 backdrop-blur-xl border border-white/10 text-xs shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 sm:p-3 rounded-2xl bg-[#12151F]/60 backdrop-blur-sm border border-white/10 text-xs shadow-lg">
           {/* Sol: Kullanıcı Rumuzu */}
           <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
             <span className="inline-block w-2 h-2 rounded-full bg-[#CCFF00] shrink-0" />
@@ -2101,7 +2101,7 @@ export default function RoomPage() {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', damping: 20 }}
               onClick={() => fileInputRef.current?.click()}
-              className="group relative my-4 sm:my-8 py-8 sm:py-14 px-4 sm:px-6 rounded-3xl bg-white/[0.02] border border-white/10 hover:border-[#CCFF00]/40 backdrop-blur-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all overflow-hidden"
+              className="group relative my-4 sm:my-8 py-8 sm:py-14 px-4 sm:px-6 rounded-3xl bg-white/[0.02] border border-white/10 hover:border-[#CCFF00]/40 backdrop-blur-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all overflow-hidden"
             >
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#CCFF00]/15 rounded-full blur-[100px] pointer-events-none group-hover:bg-[#CCFF00]/25 transition-all" />
 
@@ -2409,7 +2409,7 @@ export default function RoomPage() {
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="max-w-md mx-auto pointer-events-auto bg-[#12151F]/95 backdrop-blur-2xl border border-white/20 rounded-full px-3 py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-2"
+          className="max-w-md mx-auto pointer-events-auto bg-[#12151F]/95 backdrop-blur-sm border border-white/20 rounded-full px-3 py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-2"
         >
           {/* Sol: İstatistikler */}
           <div className="pl-1 hidden sm:block shrink-0">
@@ -2914,7 +2914,7 @@ export default function RoomPage() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/98 backdrop-blur-3xl flex flex-col select-none touch-none"
+            className="fixed inset-0 z-50 bg-black/98 backdrop-blur-md flex flex-col select-none touch-none"
             onPointerDown={() => setIsStoryPaused(true)}
             onPointerUp={() => setIsStoryPaused(false)}
           >
@@ -3074,7 +3074,7 @@ export default function RoomPage() {
               className="absolute bottom-4 inset-x-0 z-30 flex items-center justify-center gap-3 px-4"
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-2 sm:gap-3 px-4 py-2 rounded-full bg-black/60 backdrop-blur-2xl border border-white/15 shadow-2xl">
+              <div className="flex items-center gap-2 sm:gap-3 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/15 shadow-2xl">
                 {['🔥', '💀', '🫠', '✨', '📸'].map((emoji) => (
                   <button
                     key={emoji}
@@ -3232,7 +3232,7 @@ export default function RoomPage() {
             exit={{ y: 30, opacity: 0 }}
             className="fixed bottom-24 inset-x-0 z-40 flex justify-center pointer-events-none px-4"
           >
-            <div className="bg-[#12151F]/95 backdrop-blur-2xl border border-amber-500/50 text-amber-300 px-4 py-2 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.3)] flex items-center gap-2.5 text-xs font-bold pointer-events-auto">
+            <div className="bg-[#12151F]/95 backdrop-blur-sm border border-amber-500/50 text-amber-300 px-4 py-2 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.3)] flex items-center gap-2.5 text-xs font-bold pointer-events-auto">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
               <span>📶 {offlineCount} anı sırada bekliyor (İnternet gelince fırlatılacak)</span>
               {typeof navigator !== 'undefined' && navigator.onLine && (

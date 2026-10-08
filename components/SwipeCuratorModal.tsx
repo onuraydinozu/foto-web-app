@@ -283,7 +283,7 @@ export default function SwipeCuratorModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-[#08090E]/95 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 select-none overflow-hidden"
+        className="fixed inset-0 z-50 bg-[#08090E]/95 backdrop-blur-sm flex flex-col justify-between p-4 sm:p-6 select-none overflow-hidden"
       >
         {/* ÜST BAR */}
         <div className="flex items-center justify-between max-w-lg mx-auto w-full pt-1 sm:pt-2">

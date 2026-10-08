@@ -311,7 +311,7 @@ export default function PollsCard({ roomId = 'default', channel }: PollsCardProp
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full bg-[#12151F]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xl"
+      className="w-full bg-[#12151F]/80 backdrop-blur-sm border border-white/10 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xl"
     >
       {/* ÜST BAŞLIK & KONTROLLER */}
       <div className="flex items-center justify-between gap-2 flex-wrap">

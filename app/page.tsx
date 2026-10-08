@@ -300,7 +300,7 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-start sm:justify-center items-center pt-24 sm:pt-6 p-4 sm:p-6 pb-20 overflow-x-hidden overflow-y-auto selection:bg-[#CCFF00] selection:text-black">
+    <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-start sm:justify-center items-center pt-24 sm:pt-6 p-4 sm:p-6 pb-20 overflow-x-hidden selection:bg-[#CCFF00] selection:text-black">
       
       {/* AUTH MODALI */}
       <AnimatePresence>
@@ -381,7 +381,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={authLoading}
-                  className="w-full py-3 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-sm transition shadow-[0_0_20px_rgba(204,255,0,0.3)] disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-sm transition shadow-sm disabled:opacity-50"
                 >
                   {authLoading ? 'Bekleniyor...' : authMode === 'login' ? 'Giriş Yap 🚀' : 'Hesap Oluştur ✨'}
                 </button>
@@ -394,11 +394,11 @@ export default function Home() {
       
       {/* 1. CANLI AMBIENT MESH GRADIENT */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-24 -left-20 w-[480px] h-[480px] bg-gradient-to-tr from-[#7928CA]/40 to-[#4F46E5]/30 rounded-full blur-[130px] opacity-70" />
+        <div className="absolute -top-24 -left-20 w-[480px] h-[480px] bg-gradient-to-tr from-[#7928CA]/40 to-[#4F46E5]/30 rounded-full blur-[60px] opacity-40" />
 
-        <div className="absolute -bottom-28 -right-20 w-[520px] h-[520px] bg-gradient-to-bl from-[#FF2E93]/35 to-[#FF0055]/25 rounded-full blur-[140px] opacity-70" />
+        <div className="absolute -bottom-28 -right-20 w-[520px] h-[520px] bg-gradient-to-bl from-[#FF2E93]/35 to-[#FF0055]/25 rounded-full blur-[60px] opacity-40" />
 
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#CCFF00]/15 rounded-full blur-[160px] opacity-30" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#CCFF00]/15 rounded-full blur-[80px] opacity-20" />
 
         <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
       </div>
@@ -409,7 +409,7 @@ export default function Home() {
         animate={{ y: 0, opacity: 0.85, rotate: -12 }}
         whileHover={{ scale: 1.05, rotate: -8, opacity: 1, zIndex: 30 }}
         transition={{ type: 'spring', damping: 15 }}
-        className="hidden lg:block absolute top-12 left-12 z-0 w-44 bg-white p-2.5 pb-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/40 cursor-pointer select-none"
+        className="hidden lg:block absolute top-12 left-12 z-0 w-44 bg-white p-2.5 pb-5 rounded-2xl shadow-2xl border border-white/40 cursor-pointer select-none"
       >
         <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-neutral-900">
           <img
@@ -431,7 +431,7 @@ export default function Home() {
         animate={{ y: 0, opacity: 0.85, rotate: 9 }}
         whileHover={{ scale: 1.05, rotate: 4, opacity: 1, zIndex: 30 }}
         transition={{ type: 'spring', damping: 15, delay: 0.1 }}
-        className="hidden lg:block absolute top-14 right-12 z-0 w-44 bg-white p-2.5 pb-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/40 cursor-pointer select-none"
+        className="hidden lg:block absolute top-14 right-12 z-0 w-44 bg-white p-2.5 pb-5 rounded-2xl shadow-2xl border border-white/40 cursor-pointer select-none"
       >
         <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-neutral-900">
           <img
@@ -455,7 +455,7 @@ export default function Home() {
             <motion.div
               initial={{ scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-[#12151F]/90 backdrop-blur-xl rounded-[2rem] border border-[#CCFF00]/20 p-5 shadow-[0_0_30px_rgba(204,255,0,0.1)] relative"
+              className="bg-[#12151F]/90 backdrop-blur-sm rounded-[2rem] border border-[#CCFF00]/20 p-5 shadow-md relative"
             >
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
@@ -509,10 +509,10 @@ export default function Home() {
             initial={{ y: 10 }}
             animate={{ y: 0 }}
             style={{ opacity: 1 }}
-            className="bg-gradient-to-r from-[#12151F]/90 to-[#12151F]/80 backdrop-blur-xl rounded-[2rem] border border-white/15 p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4"
+            className="bg-gradient-to-r from-[#12151F]/90 to-[#12151F]/80 backdrop-blur-sm rounded-[2rem] border border-white/15 p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 shrink-0 rounded-2xl bg-[#CCFF00] flex items-center justify-center shadow-[0_0_15px_rgba(204,255,0,0.4)]">
+              <div className="w-10 h-10 shrink-0 rounded-2xl bg-[#CCFF00] flex items-center justify-center shadow-sm">
                 <Lock className="w-5 h-5 text-black" />
               </div>
               <div className="flex flex-col">
@@ -538,7 +538,7 @@ export default function Home() {
           initial={{ scale: 0, rotate: -15 }}
           animate={{ scale: 1, rotate: -7 }}
           whileHover={{ scale: 1.1, rotate: 0 }}
-          className="absolute -top-4 -left-3 sm:-left-6 z-30 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#CCFF00] text-black font-black text-[11px] tracking-wider uppercase shadow-[0_8px_20px_rgba(204,255,0,0.4)] border-2 border-black select-none cursor-default"
+          className="absolute -top-4 -left-3 sm:-left-6 z-30 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#CCFF00] text-black font-black text-[11px] tracking-wider uppercase shadow-md border-2 border-black select-none cursor-default"
         >
           <Radio className="w-3.5 h-3.5 shrink-0 fill-black animate-pulse" />
           <span>UZAKTAN ORTAK DUMP</span>
@@ -548,7 +548,7 @@ export default function Home() {
           initial={{ scale: 0, rotate: 18 }}
           animate={{ scale: 1, rotate: 6 }}
           whileHover={{ scale: 1.1, rotate: 0 }}
-          className="absolute -top-4 -right-3 sm:-right-6 z-30 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF2E93] text-white font-black text-[11px] tracking-wider uppercase shadow-[0_8px_20px_rgba(255,46,147,0.4)] border-2 border-white/20 select-none cursor-default"
+          className="absolute -top-4 -right-3 sm:-right-6 z-30 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF2E93] text-white font-black text-[11px] tracking-wider uppercase shadow-md border-2 border-white/20 select-none cursor-default"
         >
           <Bomb className="w-3.5 h-3.5 shrink-0" />
           <span>
@@ -565,7 +565,7 @@ export default function Home() {
           initial={{ scale: 0.95, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 140 }}
-          className="relative bg-white/[0.04] backdrop-blur-2xl border border-white/15 rounded-[32px] p-6 sm:p-8 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.9)] space-y-5 overflow-hidden"
+          className="relative bg-white/[0.04] backdrop-blur-sm border border-white/15 rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-5 overflow-hidden"
         >
           <div className="flex flex-col items-center text-center space-y-2 pt-2">
             <motion.div
@@ -573,11 +573,11 @@ export default function Home() {
               transition={{ type: 'spring', stiffness: 300 }}
               className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#7928CA]/40 via-[#FF2E93]/30 to-[#CCFF00]/30 border border-white/20 flex items-center justify-center mb-1 shadow-lg"
             >
-              <Globe className="w-8 h-8 text-[#CCFF00] shrink-0 drop-shadow-[0_0_10px_rgba(204,255,0,0.5)]" />
+              <Globe className="w-8 h-8 text-[#CCFF00] shrink-0 " />
             </motion.div>
             
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center justify-center gap-1">
-              Ortak Kapsül<span className="text-[#CCFF00] drop-shadow-[0_0_15px_rgba(204,255,0,0.8)]">.</span>
+              Ortak Kapsül<span className="text-[#CCFF00] ">.</span>
             </h1>
             
             <p className="text-neutral-300 text-xs sm:text-sm font-medium leading-relaxed max-w-sm">
@@ -698,7 +698,7 @@ export default function Home() {
                   onClick={() => setSelectedDuration(d.hours)}
                   className={`p-2.5 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
                     selectedDuration === d.hours
-                      ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                      ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white '
                       : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
                   }`}
                 >
@@ -718,7 +718,7 @@ export default function Home() {
             whileTap={{ scale: 0.97 }}
             onClick={createCapsule}
             disabled={loading}
-            className="w-full py-4 px-6 rounded-2xl bg-[#CCFF00] text-black font-black text-base flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(204,255,0,0.5)] hover:shadow-[0_0_45px_rgba(204,255,0,0.8)] transition disabled:opacity-50 cursor-pointer"
+            className="w-full py-4 px-6 rounded-2xl bg-[#CCFF00] text-black font-black text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <span className="font-extrabold">Kapsül Oluşturuluyor...</span>
@@ -754,7 +754,7 @@ export default function Home() {
                   placeholder="•"
                   className={`w-full h-12 text-center font-mono text-lg sm:text-xl font-black rounded-xl bg-black/50 border transition-all outline-none uppercase ${
                     digit 
-                      ? 'border-[#CCFF00] text-[#CCFF00] bg-[#CCFF00]/10 shadow-[0_0_12px_rgba(204,255,0,0.25)]' 
+                      ? 'border-[#CCFF00] text-[#CCFF00] bg-[#CCFF00]/10 ' 
                       : 'border-white/15 text-white focus:border-[#CCFF00] focus:bg-white/5'
                   }`}
                 />
@@ -769,7 +769,7 @@ export default function Home() {
               <button
                 onClick={handleJoinWithCode}
                 disabled={joinLoading}
-                className="w-full py-3 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(204,255,0,0.4)] transition cursor-pointer"
+                className="w-full py-3 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
               >
                 {joinLoading ? 'Bağlanılıyor...' : <>Kapsüle Katıl <ArrowRight className="w-3.5 h-3.5 text-black" /></>}
               </button>
