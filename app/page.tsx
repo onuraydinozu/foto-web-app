@@ -19,6 +19,7 @@ export default function Home() {
   const [capsuleTitle, setCapsuleTitle] = useState('Pazar Dump\'ı 🍕');
   const [nickname, setNickname] = useState('');
   const [userCity, setUserCity] = useState('');
+  const [hasSavedProfile, setHasSavedProfile] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<number>(48);
   const [codeDigits, setCodeDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -36,7 +37,10 @@ export default function Home() {
 
   useEffect(() => {
     const savedNick = localStorage.getItem('snaproom_nickname');
-    if (savedNick) setNickname(savedNick);
+    if (savedNick) {
+      setNickname(savedNick);
+      setHasSavedProfile(true);
+    }
 
     const savedCity = localStorage.getItem('snaproom_city');
     if (savedCity) setUserCity(savedCity);
@@ -382,38 +386,65 @@ export default function Home() {
           </div>
 
           {/* Rumuz ve Şehir / Konum Bilgisi */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="space-y-1">
-              <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
-                Rumuzun <span className="text-[#FF2E93]">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="@onur"
-                value={nickname}
-                maxLength={20}
-                onChange={(e) => {
-                  setNickname(e.target.value);
-                  setErrorMsg('');
+          {hasSavedProfile ? (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-neutral-400">Kayıtlı Profilin</p>
+                  <p className="text-base font-black text-white truncate max-w-[200px]">
+                    {nickname} {userCity ? <span className="text-neutral-400 font-medium">({userCity})</span> : ''}
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#CCFF00]/20 flex items-center justify-center border border-[#CCFF00]/30 text-lg">
+                  😎
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setHasSavedProfile(false);
+                  setNickname('');
+                  setUserCity('');
                 }}
-                className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
-              />
+                className="text-[11px] font-bold text-neutral-400 hover:text-white transition text-left underline underline-offset-2 w-fit cursor-pointer"
+              >
+                Farklı bir isimle katıl
+              </button>
             </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
+                  Rumuzun <span className="text-[#FF2E93]">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="@onur"
+                  value={nickname}
+                  maxLength={20}
+                  onChange={(e) => {
+                    setNickname(e.target.value);
+                    setErrorMsg('');
+                  }}
+                  className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
+                />
+              </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
-                Neredesin? 📍
-              </label>
-              <input
-                type="text"
-                placeholder="Örn: Çekmeköy"
-                value={userCity}
-                maxLength={25}
-                onChange={(e) => setUserCity(e.target.value)}
-                className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
-              />
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-neutral-300 uppercase tracking-wider block">
+                  Neredesin? 📍
+                </label>
+                <input
+                  type="text"
+                  placeholder="Örn: Çekmeköy"
+                  value={userCity}
+                  maxLength={25}
+                  onChange={(e) => setUserCity(e.target.value)}
+                  className="w-full bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-2xl px-3.5 py-3 text-sm font-semibold focus:outline-none focus:border-[#CCFF00] transition"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Kapsülün Ömrü / Süresi */}
           <div className="space-y-1.5">
