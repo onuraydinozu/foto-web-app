@@ -394,34 +394,11 @@ export default function Home() {
       
       {/* 1. CANLI AMBIENT MESH GRADIENT */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            x: [0, 80, -40, 0],
-            y: [0, -60, 40, 0],
-            scale: [1, 1.25, 0.9, 1],
-          }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-24 -left-20 w-[480px] h-[480px] bg-gradient-to-tr from-[#7928CA]/40 to-[#4F46E5]/30 rounded-full blur-[130px]"
-        />
+        <div className="absolute -top-24 -left-20 w-[480px] h-[480px] bg-gradient-to-tr from-[#7928CA]/40 to-[#4F46E5]/30 rounded-full blur-[130px] opacity-70" />
 
-        <motion.div
-          animate={{
-            x: [0, -70, 50, 0],
-            y: [0, 80, -50, 0],
-            scale: [1, 1.15, 1.05, 1],
-          }}
-          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -bottom-28 -right-20 w-[520px] h-[520px] bg-gradient-to-bl from-[#FF2E93]/35 to-[#FF0055]/25 rounded-full blur-[140px]"
-        />
+        <div className="absolute -bottom-28 -right-20 w-[520px] h-[520px] bg-gradient-to-bl from-[#FF2E93]/35 to-[#FF0055]/25 rounded-full blur-[140px] opacity-70" />
 
-        <motion.div
-          animate={{
-            scale: [0.9, 1.15, 0.95, 0.9],
-            opacity: [0.2, 0.35, 0.25, 0.2],
-          }}
-          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#CCFF00]/15 rounded-full blur-[160px]"
-        />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#CCFF00]/15 rounded-full blur-[160px] opacity-30" />
 
         <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
       </div>
@@ -529,8 +506,9 @@ export default function Home() {
           </AnimatePresence>
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 10 }}
+            animate={{ y: 0 }}
+            style={{ opacity: 1 }}
             className="bg-gradient-to-r from-[#12151F]/90 to-[#12151F]/80 backdrop-blur-xl rounded-[2rem] border border-white/15 p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div className="flex items-center gap-3">
