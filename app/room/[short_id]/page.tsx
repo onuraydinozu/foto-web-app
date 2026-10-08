@@ -511,6 +511,9 @@ export default function RoomPage() {
           setRoom((prev: any) => ({ ...prev, spotify_url: payload.spotify_url }));
         }
       })
+      .on('broadcast', { event: 'polls_updated' }, ({ payload }) => {
+        window.dispatchEvent(new CustomEvent('polls_updated', { detail: payload }));
+      })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'photos' },

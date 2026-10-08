@@ -108,21 +108,21 @@ export default function PollsCard({ roomId = 'default', channel }: PollsCardProp
 
   // 2. REALTIME KANAL DİNLEME (Başka biri soru/aday/oy eklediğinde anında güncelle)
   useEffect(() => {
-    if (!channel) return;
-
-    const subscription = channel.on('broadcast', { event: 'polls_updated' }, ({ payload }: any) => {
+    const handlePollsUpdated = (e: any) => {
+      const payload = e.detail;
       if (payload && Array.isArray(payload.polls)) {
         setPolls(payload.polls);
         try {
           localStorage.setItem(storageKey, JSON.stringify(payload.polls));
-        } catch (e) {}
+        } catch (err) {}
       }
-    });
-
-    return () => {
-      // Cleanup if needed
     };
-  }, [channel, storageKey]);
+    
+    window.addEventListener('polls_updated', handlePollsUpdated);
+    return () => {
+      window.removeEventListener('polls_updated', handlePollsUpdated);
+    };
+  }, [storageKey]);
 
   // 3. ANKETLERİ KAYDET & REALTIME YAYINLA
   const savePolls = useCallback(
