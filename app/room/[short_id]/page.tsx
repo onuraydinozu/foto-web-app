@@ -1555,7 +1555,7 @@ export default function RoomPage() {
           processFiles(e.dataTransfer.files);
         }
       }}
-      className="relative min-h-screen bg-[#08090E] text-[#F3F4F6] pb-36 selection:bg-[#CCFF00] selection:text-black overflow-x-hidden"
+      className="relative min-h-screen text-[#F3F4F6] pb-36 selection:bg-[#CCFF00] selection:text-black overflow-x-hidden"
     >
       
       {/* Gizli Dosya Seçici */}

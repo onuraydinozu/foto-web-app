@@ -28,7 +28,7 @@ export default function BackgroundAnimations() {
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-[-1] opacity-20">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
       {items.map((item) => (
         <motion.div
           key={item.id}

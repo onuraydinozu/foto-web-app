@@ -204,7 +204,7 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen w-full bg-[#08090E] text-[#F3F4F6] flex flex-col justify-center items-center p-4 sm:p-6 overflow-hidden selection:bg-[#CCFF00] selection:text-black">
+    <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-center items-center p-4 sm:p-6 overflow-hidden selection:bg-[#CCFF00] selection:text-black">
       
       {/* 1. CANLI AMBIENT MESH GRADIENT */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
