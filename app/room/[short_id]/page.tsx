@@ -1219,26 +1219,78 @@ export default function RoomPage() {
     }
   };
 
-  // Seçilenleri Tek Tek İndir (ZIP'siz)
-  const downloadSelectedIndividually = async () => {
-    const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
-    if (!selectedPhotos.length) return;
+  // Çoklu Dosyaları Güvenle İndir / Paylaş (Mobilde ve Masaüstünde Sıfır Kayıp)
+  const downloadMultiplePhotos = async (targetPhotos: any[]) => {
+    if (!targetPhotos.length) return;
 
-    for (let i = 0; i < selectedPhotos.length; i++) {
-      const photo = selectedPhotos[i];
-      downloadSingleFile(photo.r2_file_key, photo.original_name);
-      await new Promise((r) => setTimeout(r, 250));
+    if (targetPhotos.length === 1) {
+      downloadSingleFile(targetPhotos[0].r2_file_key, targetPhotos[0].original_name);
+      return;
+    }
+
+    const isMobile = typeof window !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent)));
+
+    // Mobilde: Tarayıcılar döngüsel dosya indirmeyi güvenlik nedeniyle engeller (sadece 1 tanesini indirir).
+    // Bu yüzden mobilde:
+    // 1) Web Share API ile doğrudan "Fotoğraflar / Galeriye Kaydet" menüsünü açar
+    // 2) Ya da tek paket ZIP olarak tüm fotoğrafları eksiksiz teslim eder
+    if (isMobile) {
+      if (typeof navigator !== 'undefined' && (navigator as any).canShare) {
+        try {
+          setDownloading(true);
+          setDownloadPercent(10);
+          const files: File[] = [];
+          for (let i = 0; i < targetPhotos.length; i++) {
+            const p = targetPhotos[i];
+            const res = await fetch(getMediaUrl(p.r2_file_key));
+            const blob = await res.blob();
+            files.push(new File([blob], p.original_name || `foto-${i + 1}.jpg`, { type: blob.type || 'image/jpeg' }));
+            setDownloadPercent(Math.round(((i + 1) / targetPhotos.length) * 80));
+          }
+          if ((navigator as any).canShare({ files })) {
+            setDownloadPercent(100);
+            await (navigator as any).share({ files, title: `Kapsül Fotoğrafları (${targetPhotos.length})` });
+            setDownloading(false);
+            return;
+          }
+        } catch (e: any) {
+          if (e.name === 'AbortError') {
+            setDownloading(false);
+            return;
+          }
+        }
+      }
+
+      // Web Share yoksa veya desteklemiyorsa: Güvenli tek paket ZIP ile tüm fotoğrafları indir
+      handleDownloadZip(targetPhotos);
+      return;
+    }
+
+    // Masaüstünde (PC / Mac): Dosyaları sırayla kayıpsız indir
+    setDownloading(true);
+    setDownloadPercent(0);
+    try {
+      for (let i = 0; i < targetPhotos.length; i++) {
+        const photo = targetPhotos[i];
+        downloadSingleFile(photo.r2_file_key, photo.original_name);
+        setDownloadPercent(Math.round(((i + 1) / targetPhotos.length) * 100));
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } finally {
+      setDownloading(false);
+      setDownloadPercent(0);
     }
   };
 
-  // Tüm Fotoğrafları Tek Tek Orijinal İndir (ZIP'siz)
-  const downloadAllIndividually = async () => {
-    if (!photos.length) return;
-    for (let i = 0; i < photos.length; i++) {
-      const photo = photos[i];
-      downloadSingleFile(photo.r2_file_key, photo.original_name);
-      await new Promise((r) => setTimeout(r, 250));
-    }
+  // Seçilenleri İndir
+  const downloadSelectedIndividually = () => {
+    const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+    downloadMultiplePhotos(selectedPhotos);
+  };
+
+  // Tüm Fotoğrafları İndir
+  const downloadAllIndividually = () => {
+    downloadMultiplePhotos(photos);
   };
 
   // ZIP ile Toplu İndir
@@ -1921,9 +1973,9 @@ export default function RoomPage() {
             </motion.div>
           ) : (
             /* ========================================================
-               POLAROID MASONRY GRID (ZAMAN TÜNELİ DİZİLİMİ)
+               MODERN POLAROID GRID (ZAMAN TÜNELİ DİZİLİMİ - DÜZGÜN & HİZALI)
                ======================================================== */
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-6">
               {photos.map((photo, index) => {
                 const photoReactions = reactions[photo.id] || [];
                 const timeString = photo.taken_at
@@ -1935,10 +1987,6 @@ export default function RoomPage() {
                 const isSelected = selectedIds.has(photo.id);
                 const isOwner = checkIsOwner(photo.uploaded_by, photo.id);
 
-                // Polaroid eğik açıları (retro hava katmak için)
-                const rotations = ['-rotate-1', 'rotate-2', '-rotate-2', 'rotate-1'];
-                const cardRotation = rotations[index % rotations.length];
-
                 // 1. SESLİ ANI KARTI (RETRO KASET / AUDIO PLAYER)
                 if (isVoice) {
                   return (
@@ -1947,7 +1995,7 @@ export default function RoomPage() {
                       layout
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className={`relative rounded-3xl p-5 bg-gradient-to-br from-[#1A162B] to-[#12151F] border border-[#7928CA]/40 shadow-xl space-y-3 ${cardRotation} hover:rotate-0 transition-transform`}
+                      className="relative rounded-3xl p-4 sm:p-5 bg-gradient-to-br from-[#1A162B] to-[#12151F] border border-[#7928CA]/40 shadow-xl space-y-3 col-span-2 sm:col-span-1"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#7928CA]/30 text-violet-300 border border-[#7928CA]/40 flex items-center gap-1">
@@ -2016,7 +2064,7 @@ export default function RoomPage() {
                   );
                 }
 
-                // 2. POLAROID FOTOĞRAF / VİDEO KARTI
+                // 2. POLAROID FOTOĞRAF / VİDEO KARTI (TAM HİZALI, DÜZGÜN KENARLAR)
                 return (
                   <motion.div
                     key={photo.id}
@@ -2038,7 +2086,7 @@ export default function RoomPage() {
                       }
                     }}
                     onDoubleClick={() => addReaction(photo.id, '🔥')}
-                    className={`group relative bg-white text-black p-2.5 pb-4 rounded-2xl shadow-xl transition-all cursor-pointer select-none ${cardRotation} hover:rotate-0 hover:scale-[1.02] hover:z-20 ${
+                    className={`group relative bg-white text-black p-2 sm:p-2.5 pb-3.5 sm:pb-4 rounded-2xl shadow-xl transition-all cursor-pointer select-none hover:scale-[1.02] hover:z-20 ${
                       isSelected ? 'ring-4 ring-[#CCFF00]' : ''
                     }`}
                   >

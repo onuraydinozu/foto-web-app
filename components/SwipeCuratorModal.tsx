@@ -180,9 +180,65 @@ export default function SwipeCuratorModal({
     }
   };
 
-  // Seçilenleri Tek Tek Orijinal Kalitede Doğrudan İndir (Kayıpsız JPEG/PNG)
+  // Seçilenleri İndir (Mobilde Galeriye Kaydet / ZIP, Masaüstünde Kayıpsız İndir)
   const handleDownloadDirectPhotos = async () => {
     if (!selectedPhotos.length || isDirectDownloading) return;
+
+    // Tek bir fotoğraf seçildiyse doğrudan kayıpsız indir
+    if (selectedPhotos.length === 1) {
+      const photo = selectedPhotos[0];
+      const downloadUrl = `${getMediaUrl(photo.r2_file_key)}&download=1&filename=${encodeURIComponent(photo.original_name || 'foto.jpg')}`;
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = photo.original_name || 'foto.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+
+    const isMobile = typeof window !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent)));
+
+    // Mobilde: Tarayıcılar döngüsel çoklu dosya indirmeyi güvenlik nedeniyle engeller (sadece 1 tanesini indirir).
+    // Bu yüzden mobilde:
+    // 1) Web Share API ile doğrudan telefonun "Görselleri Galeriye Kaydet" menüsünü açar
+    // 2) Ya da tek paket ZIP olarak tüm fotoğrafları eksiksiz teslim eder
+    if (isMobile) {
+      if (typeof navigator !== 'undefined' && (navigator as any).canShare) {
+        try {
+          setIsDirectDownloading(true);
+          setDirectProgress(10);
+          const files: File[] = [];
+          for (let i = 0; i < selectedPhotos.length; i++) {
+            const p = selectedPhotos[i];
+            const res = await fetch(getMediaUrl(p.r2_file_key));
+            const blob = await res.blob();
+            files.push(new File([blob], p.original_name || `foto-${i + 1}.jpg`, { type: blob.type || 'image/jpeg' }));
+            setDirectProgress(Math.round(((i + 1) / selectedPhotos.length) * 85));
+          }
+          if ((navigator as any).canShare({ files })) {
+            setDirectProgress(100);
+            await (navigator as any).share({
+              files,
+              title: `Seçilen Fotoğraflar (${selectedPhotos.length})`,
+            });
+            setIsDirectDownloading(false);
+            return;
+          }
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            setIsDirectDownloading(false);
+            return;
+          }
+        }
+      }
+
+      // Web Share yoksa veya iptal edildiyse: Güvenli tek paket ZIP ile tüm fotoğrafları eksiksiz indir
+      handleDownloadCuratedZip();
+      return;
+    }
+
+    // Masaüstünde: Tarayıcı çoklu indirmeye izin verdiği için sırayla indir
     setIsDirectDownloading(true);
     setDirectProgress(0);
 
@@ -199,9 +255,8 @@ export default function SwipeCuratorModal({
 
         setDirectProgress(Math.round(((i + 1) / selectedPhotos.length) * 100));
 
-        // Tarayıcı indirme kuyruğunu korumak için kısa gecikme
         if (i < selectedPhotos.length - 1) {
-          await new Promise((r) => setTimeout(r, 400));
+          await new Promise((r) => setTimeout(r, 350));
         }
       }
 
@@ -341,7 +396,7 @@ export default function SwipeCuratorModal({
               <div className="space-y-2.5 pt-2">
                 {selectedPhotos.length > 0 ? (
                   <>
-                    {/* 1. ANA / TEMEL BUTON: DOĞRUDAN KAYIPSIZ JPEG / PNG İNDİR */}
+                    {/* 1. ANA / TEMEL BUTON: DOĞRUDAN KAYIPSIZ JPEG / PNG YA DA GALERİYE AKTAR */}
                     <button
                       onClick={handleDownloadDirectPhotos}
                       disabled={isDirectDownloading || isZipping}
@@ -350,12 +405,12 @@ export default function SwipeCuratorModal({
                       <FileDown className="w-4 h-4 stroke-[2.5]" />
                       <span>
                         {isDirectDownloading
-                          ? `İndiriliyor (%${directProgress})...`
-                          : `Fotoğrafları İndir (${selectedPhotos.length} Kayıpsız JPEG/PNG)`}
+                          ? `Hazırlanıyor (%${directProgress})...`
+                          : `Fotoğrafları Kaydet (${selectedPhotos.length} Adet)`}
                       </span>
                     </button>
 
-                    {/* 2. EKSTRA SEÇENEK: ZIP İNDİRME */}
+                    {/* 2. EKSTRA SEÇENEK: TEK PAKET ZIP İNDİRME */}
                     <button
                       onClick={handleDownloadCuratedZip}
                       disabled={isZipping || isDirectDownloading}
@@ -365,7 +420,7 @@ export default function SwipeCuratorModal({
                       <span>
                         {isZipping 
                           ? `ZIP Paketleniyor (%${zipProgress})...` 
-                          : 'Ekstra Seçenek: ZIP Olarak İndir (.zip)'}
+                          : 'Tümünü Tek Pakette İndir (.ZIP)'}
                       </span>
                     </button>
                   </>
