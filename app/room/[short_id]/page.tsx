@@ -251,9 +251,11 @@ export default function RoomPage() {
   const [storageModalMsg, setStorageModalMsg] = useState('');
 
   // Spotify Vibe Modalı
-  const [showSpotifyModal, setShowSpotifyModal] = useState(false);
-  const [customTrack, setCustomTrack] = useState('');
-  const [spotifySaving, setSpotifySaving] = useState(false);
+  const [showYoutubeModal, setShowYoutubeModal] = useState(false);
+  const [youtubeQuery, setYoutubeQuery] = useState('');
+  const [youtubeSaving, setYoutubeSaving] = useState(false);
+  const [youtubeResults, setYoutubeResults] = useState<any[]>([]);
+  const [isYoutubeSearching, setIsYoutubeSearching] = useState(false);
 
   // Yükleme Durumu & Sürükle Bırak Ekranı
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -1475,18 +1477,33 @@ export default function RoomPage() {
     }
   };
 
-  // Spotify Vibe Track Güncelleme & Canlı Eşzamanlama
-  const handleSaveSpotify = async (trackText: string) => {
-    setSpotifySaving(true);
-    const trimmed = trackText.trim();
-    await supabase.from('rooms').update({ spotify_url: trimmed }).eq('id', room.id);
-    setRoom((prev: any) => ({ ...prev, spotify_url: trimmed }));
+  // Youtube Track Güncelleme & Canlı Eşzamanlama
+  const handleSaveYoutube = async (videoId: string) => {
+    setYoutubeSaving(true);
+    let finalUrl = '';
+    if (videoId) finalUrl = `yt:${videoId}`;
+    await supabase.from('rooms').update({ spotify_url: finalUrl }).eq('id', room.id);
+    setRoom((prev: any) => ({ ...prev, spotify_url: finalUrl }));
     channelRef.current?.send?.({
       type: 'broadcast',
       event: 'spotify_updated',
-      payload: { spotify_url: trimmed },
+      payload: { spotify_url: finalUrl },
     });
-    setSpotifySaving(false);
+    setYoutubeSaving(false);
+  };
+  
+  const searchYoutube = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!youtubeQuery.trim()) return;
+    setIsYoutubeSearching(true);
+    try {
+      const res = await fetch(`/api/youtube?q=${encodeURIComponent(youtubeQuery)}`);
+      const data = await res.json();
+      if (data.videos) {
+        setYoutubeResults(data.videos);
+      }
+    } catch (err) {}
+    setIsYoutubeSearching(false);
   };
 
   const toggleDisposableMode = async () => {
@@ -1701,22 +1718,21 @@ export default function RoomPage() {
 
           {/* Sağ Kısım: Davet Linki, Spotify, Geri Sayım, Recap, QR */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* SPOTIFY VIBE BUTONU */}
+            {/* YOUTUBE VIBE BUTONU */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                setCustomTrack(room.spotify_url || '');
-                setShowSpotifyModal(true);
+                setShowYoutubeModal(true);
               }}
               title="Kapsülün Şarkısını Dinle & Değiştir"
               className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1 ${
                 room.spotify_url
-                  ? 'bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border-[#1DB954]/50 text-[#1DB954]'
+                  ? 'bg-red-500/20 hover:bg-red-500/30 border-red-500/50 text-red-500'
                   : 'bg-white/5 hover:bg-white/10 border-white/15 text-neutral-300'
               }`}
             >
-              <Disc3 className={`w-3.5 h-3.5 shrink-0 ${room.spotify_url ? 'text-[#1DB954] animate-[spin_3s_linear_infinite]' : 'text-neutral-400'}`} />
+              <Disc3 className={`w-3.5 h-3.5 shrink-0 ${room.spotify_url ? 'text-red-500 animate-[spin_3s_linear_infinite]' : 'text-neutral-400'}`} />
               <span className="hidden md:inline max-w-[90px] truncate">
                 {room.spotify_url ? 'Müzik' : 'Şarkı'}
               </span>
@@ -1787,36 +1803,37 @@ export default function RoomPage() {
             CANLI SPOTIFY OYNATICI (ODAYA GİRİNCE OTOMATİK ÇALMA)
            ======================================================== */}
         {(() => {
-          const activeSpotify = parseSpotifyTrack(room.spotify_url);
-          if (!activeSpotify) return null;
+          if (!room.spotify_url?.startsWith('yt:')) return null;
+          const videoId = room.spotify_url.replace('yt:', '');
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl overflow-hidden border border-[#1DB954]/40 bg-[#12151F]/95 backdrop-blur-xl shadow-[0_0_30px_rgba(29,185,84,0.18)]"
+              className="rounded-2xl overflow-hidden border border-red-500/40 bg-[#12151F]/95 backdrop-blur-xl shadow-[0_0_30px_rgba(255,0,0,0.18)]"
             >
-              <div className="px-3.5 py-1.5 bg-[#1DB954]/10 border-b border-[#1DB954]/20 flex items-center justify-between text-xs">
+              <div className="px-3.5 py-1.5 bg-red-500/10 border-b border-red-500/20 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#1DB954] animate-ping shrink-0" />
-                  <span className="font-bold text-[#1DB954] flex items-center gap-1.5 text-xs">
-                    <Disc3 className="w-3.5 h-3.5 text-[#1DB954] animate-[spin_3s_linear_infinite]" />
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                  <span className="font-bold text-red-500 flex items-center gap-1.5 text-xs">
+                    <Disc3 className="w-3.5 h-3.5 text-red-500 animate-[spin_3s_linear_infinite]" />
                     Kapsülün Şarkısı Çalıyor 🎵
                   </span>
                 </div>
                 <button
-                  onClick={() => setShowSpotifyModal(true)}
+                  onClick={() => setShowYoutubeModal(true)}
                   className="text-[11px] font-bold text-neutral-300 hover:text-white px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
                 >
                   Şarkıyı Değiştir 🎧
                 </button>
               </div>
               <iframe
-                src={`https://open.spotify.com/embed/${activeSpotify.type}/${activeSpotify.id}?utm_source=generator&theme=0&autoplay=1`}
                 width="100%"
                 height="80"
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=1`}
+                title="YouTube video player"
                 frameBorder="0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="eager"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
                 className="w-full"
               />
             </motion.div>
@@ -2652,15 +2669,15 @@ export default function RoomPage() {
         )}
       </AnimatePresence>
 
-      {/* SPOTIFY MODALI */}
+      {/* YOUTUBE MODALI */}
       <AnimatePresence>
-        {showSpotifyModal && (
+        {showYoutubeModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
-            onClick={() => setShowSpotifyModal(false)}
+            onClick={() => setShowYoutubeModal(false)}
           >
             <motion.div
               initial={{ scale: 0.92, opacity: 0 }}
@@ -2671,7 +2688,7 @@ export default function RoomPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#1DB954]/20 border border-[#1DB954]/40 flex items-center justify-center text-[#1DB954]">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-500">
                     <Music className="w-5 h-5" />
                   </div>
                   <div>
@@ -2679,44 +2696,44 @@ export default function RoomPage() {
                       Kapsülün Şarkısı 🎧
                     </h3>
                     <p className="text-[11px] text-neutral-400">
-                      Odadaki herkes için arka plan müziği seç veya çal
+                      YouTube'dan şarkı ara ve odaya ekle
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowSpotifyModal(false)}
+                  onClick={() => setShowYoutubeModal(false)}
                   className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* ÇALAN ŞARKI GÖSTERİCİ (SPOTIFY EMBED PLAYER) */}
+              {/* ÇALAN ŞARKI GÖSTERİCİ (YOUTUBE EMBED PLAYER) */}
               {(() => {
-                const active = parseSpotifyTrack(room.spotify_url);
-                if (active) {
+                if (room.spotify_url?.startsWith('yt:')) {
+                  const videoId = room.spotify_url.replace('yt:', '');
                   return (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs font-bold text-neutral-300 px-1">
-                        <span className="flex items-center gap-1.5 text-[#1DB954]">
-                          <span className="w-2 h-2 rounded-full bg-[#1DB954] animate-ping" />
+                        <span className="flex items-center gap-1.5 text-red-500">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                           Şu An Odada Çalıyor
                         </span>
                         <button
-                          onClick={() => handleSaveSpotify('')}
-                          disabled={spotifySaving}
+                          onClick={() => handleSaveYoutube('')}
+                          disabled={youtubeSaving}
                           className="text-neutral-400 hover:text-red-400 text-[11px] flex items-center gap-1 transition cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" /> Şarkıyı Kaldır
                         </button>
                       </div>
-                      <div className="rounded-2xl overflow-hidden border border-[#1DB954]/30 shadow-[0_0_25px_rgba(29,185,84,0.2)] bg-black/70">
+                      <div className="rounded-2xl overflow-hidden border border-red-500/30 shadow-[0_0_25px_rgba(255,0,0,0.2)] bg-black/70">
                         <iframe
-                          src={`https://open.spotify.com/embed/${active.type}/${active.id}?utm_source=generator&theme=0`}
+                          src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&controls=1`}
                           width="100%"
                           height="152"
                           frameBorder="0"
-                          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           loading="lazy"
                           className="w-full rounded-xl"
                         />
@@ -2728,89 +2745,59 @@ export default function RoomPage() {
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1">
                     <Disc3 className="w-7 h-7 text-neutral-400 mx-auto" />
                     <p className="text-xs font-bold text-white">Şu an seçili müzik yok</p>
-                    <p className="text-[11px] text-neutral-400">
-                      Aşağıdaki hazır trend listelerden birine dokun veya kendi Spotify linkini yapıştır!
-                    </p>
                   </div>
                 );
               })()}
 
-              {/* HIZLI SEÇİM (TREND PRESETLER) */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-                    ⚡ Popüler Çalma Listeleri & Parçalar
-                  </p>
-                  <span className="text-[10px] text-neutral-500 font-mono">1-Tıkla Başlat</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                  {SPOTIFY_PRESETS.map((item) => {
-                    const isCurrent = room.spotify_url && room.spotify_url.includes(item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSaveSpotify(`https://open.spotify.com/${item.type}/${item.id}`)}
-                        disabled={spotifySaving}
-                        className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 text-xs font-medium cursor-pointer ${
-                          isCurrent
-                            ? 'bg-[#1DB954]/20 border-[#1DB954] text-white shadow-[0_0_15px_rgba(29,185,84,0.3)]'
-                            : 'bg-white/5 border-white/10 hover:bg-white/10 text-neutral-200'
-                        }`}
-                      >
-                        <span className="text-base shrink-0">{item.emoji}</span>
-                        <div className="truncate min-w-0">
-                          <p className="font-bold text-[12px] truncate leading-tight text-white">{item.title}</p>
-                          <p className="text-[10px] text-neutral-400 truncate leading-tight mt-0.5">{item.subtitle}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* ÖZEL LİNK GİRME / ARAMA */}
               <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-                    🔗 Kendi Spotify Linkini Yapıştır veya Ara
-                  </p>
-                </div>
-                <div className="flex gap-2">
+                <form onSubmit={searchYoutube} className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Spotify linki (şarkı/playlist) veya şarkı adı..."
-                    value={customTrack}
-                    onChange={(e) => setCustomTrack(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && customTrack.trim()) {
-                        const parsed = parseSpotifyTrack(customTrack.trim());
-                        if (parsed) {
-                          handleSaveSpotify(`https://open.spotify.com/${parsed.type}/${parsed.id}`);
-                        } else {
-                          window.open(`https://open.spotify.com/search/${encodeURIComponent(customTrack.trim())}`, '_blank');
-                        }
-                      }
-                    }}
-                    className="flex-1 bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:border-[#1DB954]"
+                    placeholder="YouTube'da şarkı ara (Örn: Sezen Aksu)..."
+                    value={youtubeQuery}
+                    onChange={(e) => setYoutubeQuery(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/15 text-white placeholder:text-neutral-500 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:border-red-500"
                   />
                   <button
-                    onClick={() => {
-                      if (!customTrack.trim()) return;
-                      const parsed = parseSpotifyTrack(customTrack.trim());
-                      if (parsed) {
-                        handleSaveSpotify(`https://open.spotify.com/${parsed.type}/${parsed.id}`);
-                      } else {
-                        window.open(`https://open.spotify.com/search/${encodeURIComponent(customTrack.trim())}`, '_blank');
-                        alert(`"${customTrack.trim()}" için Spotify arama sayfası açıldı! Beğendiğin şarkının linkini kopyalayıp buraya yapıştırabilirsin. 🎵`);
-                      }
-                    }}
-                    disabled={spotifySaving || !customTrack.trim()}
-                    className="px-4 py-2.5 rounded-xl bg-[#1DB954] hover:bg-[#18a349] text-black font-black text-xs flex items-center justify-center gap-1 transition disabled:opacity-50 cursor-pointer shrink-0"
+                    type="submit"
+                    disabled={isYoutubeSearching || !youtubeQuery.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-xs flex items-center justify-center gap-1 transition disabled:opacity-50 cursor-pointer shrink-0"
                   >
-                    {spotifySaving ? '...' : 'Çal 🎵'}
+                    {isYoutubeSearching ? '...' : 'Ara 🔍'}
                   </button>
-                </div>
+                </form>
               </div>
+
+              {/* ARAMA SONUÇLARI */}
+              {youtubeResults.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                    🎵 Arama Sonuçları
+                  </p>
+                  <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
+                    {youtubeResults.map((video) => (
+                      <button
+                        key={video.id}
+                        onClick={() => {
+                          handleSaveYoutube(video.id);
+                          setYoutubeResults([]);
+                          setYoutubeQuery('');
+                        }}
+                        disabled={youtubeSaving}
+                        className="flex gap-3 p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition cursor-pointer text-left"
+                      >
+                        <img src={video.thumbnail} alt={video.title} className="w-20 h-14 object-cover rounded-md bg-black" />
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <p className="text-xs font-bold text-white truncate">{video.title}</p>
+                          <p className="text-[10px] text-neutral-400 mt-1">{video.author} • {video.duration}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </motion.div>
           </motion.div>
         )}
