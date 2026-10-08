@@ -595,6 +595,13 @@ export default function RoomPage() {
         : created + 48 * 60 * 60 * 1000;
       const diff = expires - Date.now();
 
+      // Süresiz Kontrolü (100 yıl)
+      if (diff > 10 * 365 * 24 * 3600 * 1000) {
+        setTimeLeft('Süresiz ♾️');
+        clearInterval(interval);
+        return;
+      }
+
       if (diff <= 0) {
         setTimeLeft('00:00:00 (SÜRE DOLDU)');
         setIsExpired(true);

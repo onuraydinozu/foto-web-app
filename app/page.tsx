@@ -166,9 +166,15 @@ export default function Home() {
     // Kapsül başlığı location alanına yazılır
     const finalTitle = capsuleTitle.trim() || 'Günün Ortak Dump\'ı ✨';
 
-    // Seçilen kapsül süresi (24h, 48h, 1 hafta)
-    const durationHours = selectedDuration || 48;
-    const uploadLockedAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+    // Seçilen kapsül süresi (24h, 48h, 1 hafta, 0=süresiz)
+    const durationHours = selectedDuration === 0 ? 0 : (selectedDuration || 48);
+    let uploadLockedAt;
+    if (durationHours === 0) {
+      // 100 yıl = süresiz
+      uploadLockedAt = new Date(Date.now() + 100 * 365 * 24 * 3600 * 1000).toISOString();
+    } else {
+      uploadLockedAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+    }
 
     const { data: room, error } = await supabase
       .from('rooms')
@@ -407,11 +413,12 @@ export default function Home() {
               </label>
               <span className="text-[10px] text-neutral-400 font-mono">Süre bitince fotoğraflar uçar</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { hours: 24, label: '24 Saat', desc: '1 Günlük Hızlı', icon: '⚡' },
                 { hours: 48, label: '48 Saat', desc: '2 Günlük Klasik', icon: '💣' },
                 { hours: 168, label: '1 Hafta', desc: '7 Günlük Seyahat', icon: '🗓️' },
+                { hours: 0, label: 'Süresiz', desc: 'Sonsuza Dek', icon: '♾️' },
               ].map((d) => (
                 <button
                   key={d.hours}
