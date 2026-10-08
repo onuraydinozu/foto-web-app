@@ -113,35 +113,40 @@ export default function Home() {
     localStorage.setItem('snaproom_nickname', nickname.trim());
     if (userCity.trim()) localStorage.setItem('snaproom_city', userCity.trim());
 
-    // 1. Önce 6 haneli Kapsül Kodu (short_id) olarak ara (büyük/küçük harf duyarsız)
-    let { data: room, error } = await supabase
-      .from('rooms')
-      .select('short_id, pin_hash')
-      .ilike('short_id', fullCode)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    // 2. Bulunamadıysa eski 4 haneli PIN ile ara
-    if (!room) {
-      const { data: roomByPin } = await supabase
+    try {
+      // 1. Önce 6 haneli Kapsül Kodu (short_id) olarak ara (büyük/küçük harf duyarsız)
+      let { data: room, error } = await supabase
         .from('rooms')
         .select('short_id, pin_hash')
-        .eq('pin_hash', fullCode)
+        .ilike('short_id', fullCode)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      room = roomByPin;
+
+      // 2. Bulunamadıysa eski 4 haneli PIN ile ara
+      if (!room) {
+        const { data: roomByPin } = await supabase
+          .from('rooms')
+          .select('short_id, pin_hash')
+          .eq('pin_hash', fullCode)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        room = roomByPin;
+      }
+
+      setJoinLoading(false);
+
+      if (!room) {
+        setErrorMsg(`"${fullCode}" koduna sahip aktif bir ortak kapsül bulunamadı!`);
+        return;
+      }
+
+      router.push(`/room/${room.short_id}?token=${room.pin_hash || room.short_id}`);
+    } catch (e: any) {
+      setJoinLoading(false);
+      setErrorMsg(`Bağlantı hatası: ${e.message || 'Bilinmeyen hata'}`);
     }
-
-    setJoinLoading(false);
-
-    if (!room) {
-      setErrorMsg(`"${fullCode}" koduna sahip aktif bir ortak kapsül bulunamadı!`);
-      return;
-    }
-
-    router.push(`/room/${room.short_id}?token=${room.pin_hash || room.short_id}`);
   };
 
   // Yeni Ortak Kapsül Başlat
@@ -176,31 +181,36 @@ export default function Home() {
       uploadLockedAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
     }
 
-    const { data: room, error } = await supabase
-      .from('rooms')
-      .insert({
-        short_id: shortId,
-        pin_hash: generatedPin,
-        is_disposable_mode: false,
-        is_unlocked: true,
-        location: finalTitle,
-        spotify_url: '',
-        upload_locked_at: uploadLockedAt,
-      })
-      .select()
-      .single();
+    try {
+      const { data: room, error } = await supabase
+        .from('rooms')
+        .insert({
+          short_id: shortId,
+          pin_hash: generatedPin,
+          is_disposable_mode: false,
+          is_unlocked: true,
+          location: finalTitle,
+          spotify_url: '',
+          upload_locked_at: uploadLockedAt,
+        })
+        .select()
+        .single();
 
-    setLoading(false);
+      setLoading(false);
 
-    if (error || !room) {
-      setErrorMsg('Ortak kapsül oluşturulurken bir hata oluştu.');
-      return;
+      if (error || !room) {
+        setErrorMsg(`Ortak kapsül oluşturulurken hata: ${error?.message || 'Bilinmeyen hata'}`);
+        return;
+      }
+
+      localStorage.setItem('snaproom_nickname', nickname.trim());
+      if (userCity.trim()) localStorage.setItem('snaproom_city', userCity.trim());
+
+      router.push(`/room/${shortId}?token=${generatedPin}`);
+    } catch (e: any) {
+      setLoading(false);
+      setErrorMsg(`Sunucu hatası: ${e.message || 'Bilinmeyen hata'}`);
     }
-
-    localStorage.setItem('snaproom_nickname', nickname.trim());
-    if (userCity.trim()) localStorage.setItem('snaproom_city', userCity.trim());
-
-    router.push(`/room/${shortId}?token=${generatedPin}`);
   };
 
   return (

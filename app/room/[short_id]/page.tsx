@@ -182,6 +182,7 @@ export default function RoomPage() {
   const tokenPin = searchParams?.get('token') || searchParams?.get('pin');
 
   const [room, setRoom] = useState<any>(null);
+  const [roomError, setRoomError] = useState(false);
   const [photos, setPhotos] = useState<any[]>([]);
 
   // Canlı Varlık Sayacı (Supabase Realtime Presence)
@@ -648,11 +649,16 @@ export default function RoomPage() {
   }, [room?.created_at, room?.upload_locked_at, hasPurgedExpired]);
 
   const fetchData = async () => {
-    const { data: roomData } = await supabase
+    const { data: roomData, error } = await supabase
       .from('rooms')
       .select('*')
       .eq('short_id', params.short_id)
-      .single();
+      .maybeSingle();
+
+    if (error || !roomData) {
+      setRoomError(true);
+      return;
+    }
 
     if (roomData) {
       setRoom(roomData);
@@ -1527,9 +1533,27 @@ export default function RoomPage() {
     setShowUserModal(false);
   };
 
+  if (roomError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-white space-y-4 px-4 text-center">
+        <span className="text-6xl">👻</span>
+        <h1 className="text-2xl font-black text-[#FF2E93]">Kapsül Bulunamadı</h1>
+        <p className="text-neutral-400 font-mono text-sm max-w-sm">
+          Bu kapsül ya hiç var olmadı ya da süresi dolduğu için tamamen küle dönüştü.
+        </p>
+        <button 
+          onClick={() => router.push('/')} 
+          className="px-6 py-3 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-sm rounded-xl transition cursor-pointer mt-2"
+        >
+          Ana Sayfaya Dön
+        </button>
+      </div>
+    );
+  }
+
   if (!room) {
     return (
-      <div className="min-h-screen bg-[#08090E] flex flex-col items-center justify-center text-white space-y-3">
+      <div className="min-h-screen flex flex-col items-center justify-center text-white space-y-3">
         <div className="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin" />
         <p className="font-mono text-sm text-neutral-400">ORTAK KAPSÜL BAĞLANIYOR // SHARED VAULT</p>
       </div>
