@@ -7,7 +7,7 @@ export const maxDuration = 30;
 const placesCache = new Map<string, { data: any[]; expiry: number }>();
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
-// Haversine Formülü: İki koordinat arası kuş uçuşu mesafe (km)
+// Haversine Formülü: İki koordinat arası kuş uçuşu gerçek mesafe (km)
 function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Dünya yarıçapı (km)
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -62,9 +62,15 @@ function getOsmFilter(category: string): { type: 'amenity' | 'leisure_mixed'; fi
   return { type: 'amenity', filter: 'cafe' };
 }
 
-export async function POST(req: Request) {
+// Ortak Mekan Öneri Yürütücüsü
+async function handleRecommendPlaces(params: {
+  lat: number | null;
+  lng: number | null;
+  category: string;
+  district: string;
+}) {
   try {
-    const { district, lat, lng, category } = await req.json();
+    const { district, lat, lng, category } = params;
 
     const targetDistrict = district && district !== 'Anlık Konum' ? district : 'Kadıköy';
     const mapping = getOsmFilter(category);
@@ -156,7 +162,7 @@ export async function POST(req: Request) {
 
       if (osmRes.ok) {
         const osmJson = await osmRes.json();
-        // 4.1. İSMİ OLMAYAN (!element.tags?.name) YERLERİ FİLTRELE
+        // 4.1. İSMİ OLMAYAN (!element.tags?.name) YERLERİ KESİNLİKLE FİLTRELE
         rawElements = (osmJson.elements || []).filter(
           (el: any) => el && el.tags && el.tags.name && typeof el.tags.name === 'string' && el.tags.name.trim().length > 0
         );
@@ -165,9 +171,9 @@ export async function POST(req: Request) {
       console.warn('[Overpass API Request Error/Timeout]:', overpassErr);
     }
 
-    // 5. YEDEK ARAMA: EĞER OVERPASS BOŞ DÖNER VEYA KESİLİRSE (NOMINATIM GÜVENCESİ)
     let formattedPlaces: any[] = [];
 
+    // 5. YEDEK ARAMA: EĞER OVERPASS BOŞ DÖNER VEYA KESİLİRSE (NOMINATIM GÜVENCESİ)
     if (rawElements.length > 0) {
       // 5.1. MESAFEYİ HAVERSINE İLE HESAPLA VE OBJEYİ OLUŞTUR
       const parsedList = rawElements.map((item: any, idx: number) => {
@@ -199,7 +205,7 @@ export async function POST(req: Request) {
           rating: String(rating),
           category: categoryName,
           mapsUrl: mapsUrl,
-          // Destekleyici alanlar (Arayüz ve oylama uyumluluğu için)
+          // Arayüz ve masaya oylama butonları için uyumluluk alanları
           place_id: `osm_${item.type}_${item.id}`,
           address: address,
           summary: cuisine ? `${cuisine} • ${suburb}` : `${suburb} bölgesinde kayıtlı gerçek mekan.`,
@@ -215,7 +221,7 @@ export async function POST(req: Request) {
       // 5.2. MESAFEYE GÖRE EN YAKINDAN EN UZAĞA SIRALA (SORT)
       parsedList.sort((a, b) => a._distKm - b._distKm);
 
-      // Temizlenen ve sıralanan ilk 15 mekanı al (_distKm geçici alanını çıkar)
+      // Temizlenen ve sıralanan ilk 15 mekanı al
       formattedPlaces = parsedList.slice(0, 15).map(({ _distKm, ...rest }) => rest);
     } else {
       // Nominatim Fallback
@@ -296,4 +302,29 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+// GET İsteği (/api/places/recommend?lat=...&lng=...&category=...&district=...)
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const latParam = searchParams.get('lat');
+  const lngParam = searchParams.get('lng');
+  const lat = latParam ? parseFloat(latParam) : null;
+  const lng = lngParam ? parseFloat(lngParam) : null;
+  const category = searchParams.get('category') || '';
+  const district = searchParams.get('district') || '';
+
+  return handleRecommendPlaces({ lat, lng, category, district });
+}
+
+// POST İsteği (Geriye Dönük Uyumluluk)
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const { district, lat, lng, category } = body;
+  return handleRecommendPlaces({
+    lat: typeof lat === 'number' ? lat : (lat ? parseFloat(lat) : null),
+    lng: typeof lng === 'number' ? lng : (lng ? parseFloat(lng) : null),
+    category: category || '',
+    district: district || ''
+  });
 }

@@ -108,16 +108,22 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
     setErrorMessage(null);
 
     try {
-      const res = await fetch('/api/places/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          district: targetDistrict,
-          lat: targetLoc?.lat,
-          lng: targetLoc?.lng,
-          category: targetCat,
-          filters: targetFilters
-        })
+      // Query parametrelerini oluştur: /api/places/recommend?lat=...&lng=...&category=...
+      const params = new URLSearchParams();
+      if (targetLoc?.lat && targetLoc?.lng) {
+        params.append('lat', targetLoc.lat.toString());
+        params.append('lng', targetLoc.lng.toString());
+      }
+      if (targetCat) {
+        params.append('category', targetCat);
+      }
+      if (targetDistrict && targetDistrict !== 'Anlık Konum') {
+        params.append('district', targetDistrict);
+      }
+
+      const res = await fetch(`/api/places/recommend?${params.toString()}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
       });
 
       const data = await res.json().catch(() => ({}));
@@ -148,9 +154,9 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       }
     } catch (e: any) {
       console.error(e);
-      setErrorMessage('⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?');
+      setErrorMessage('⚠️ Mekanlar yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.');
     } finally {
-      setLoadingPlaces(false); // Skeleton'ı KESİNLİKLE sonlandır
+      setLoadingPlaces(false); // Yükleme bitince skeleton'ı KESİNLİKLE kapat
       isSearchingRef.current = false;
     }
   };
@@ -579,6 +585,11 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                               <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
                                 📍 {place.district}
                               </span>
+                              {place.category && (
+                                <span className="flex items-center gap-1 bg-white/5 text-neutral-300 px-2 py-0.5 rounded-full border border-white/10">
+                                  🏷️ {place.category}
+                                </span>
+                              )}
                               {place.parking_info?.valet && (
                                 <span className="flex items-center gap-1 bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded-full border border-blue-500/20">
                                   <Car className="w-3 h-3" /> Vale
