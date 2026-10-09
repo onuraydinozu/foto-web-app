@@ -13,13 +13,15 @@ import {
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
   Music, Check, UploadCloud, Flame, Camera, Users, Trophy,
   Trash2, CheckSquare, Square, FileDown, Layers,
-  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft
+  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap
 } from 'lucide-react';
 import exifr from 'exifr';
 import AuthModal from '@/components/AuthModal';
 import PollsCard from '@/components/PollsCard';
 import YoutubePlayer from '@/components/YoutubePlayer';
 import SwipeCuratorModal from '@/components/SwipeCuratorModal';
+import VibeCheckAlert, { playVibeCheckAudio } from '@/components/VibeCheckAlert';
+import VibeCheckShowcase from '@/components/VibeCheckShowcase';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
 
 
@@ -71,8 +73,22 @@ function formatDeviceName(make?: string, model?: string): string | null {
 }
 
 function parsePhotoUploader(rawUploader: string) {
-  if (!rawUploader) return { nick: 'Anonim', city: null, device: null, display: 'Anonim' };
-  const parts = rawUploader.split('__DEV:');
+  if (!rawUploader) return { nick: 'Anonim', city: null, device: null, display: 'Anonim', vibeCheckId: null, isLate: false };
+  
+  let cleanRaw = rawUploader;
+  let vibeCheckId: string | null = null;
+  let isLate = false;
+
+  if (cleanRaw.includes('__VC:')) {
+    const vcParts = cleanRaw.split('__VC:');
+    cleanRaw = vcParts[0];
+    const vcInfo = vcParts[1] || '';
+    const [vcId, vcStatus] = vcInfo.split(':');
+    vibeCheckId = vcId || null;
+    isLate = vcStatus === 'LATE';
+  }
+
+  const parts = cleanRaw.split('__DEV:');
   const uploaderStr = parts[0].trim();
   const device = parts[1]?.trim() || null;
 
@@ -90,6 +106,8 @@ function parsePhotoUploader(rawUploader: string) {
     city,
     device,
     display: city ? `@${cleanNick} · ${city}` : `@${cleanNick}`,
+    vibeCheckId,
+    isLate,
   };
 }
 
@@ -242,6 +260,13 @@ export default function RoomPage() {
 
   // Çoklu Seçim Modu
   const [isSelectMode, setIsSelectMode] = useState(false);
+
+  // Vibe Check (Senkronize Fotoğraf Ruleti) Durumları
+  const [activeVibeCheck, setActiveVibeCheck] = useState<any>(null);
+  const [latestVibeCheck, setLatestVibeCheck] = useState<any>(null);
+  const [showVibeAlert, setShowVibeAlert] = useState(false);
+  const [isTriggeringVibe, setIsTriggeringVibe] = useState(false);
+  const vibeCameraInputRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDownloadModal, setShowBulkDownloadModal] = useState(false);
 
@@ -528,6 +553,14 @@ export default function RoomPage() {
       .on('broadcast', { event: 'polls_updated' }, ({ payload }) => {
         window.dispatchEvent(new CustomEvent('polls_updated', { detail: payload }));
       })
+      .on('broadcast', { event: 'vibe_check_alert' }, ({ payload }) => {
+        if (payload) {
+          setActiveVibeCheck(payload);
+          setLatestVibeCheck(payload);
+          setShowVibeAlert(true);
+          playVibeCheckAudio();
+        }
+      })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'photos' },
@@ -674,6 +707,24 @@ export default function RoomPage() {
     return () => clearInterval(interval);
   }, [room?.created_at, room?.upload_locked_at, hasPurgedExpired]);
 
+  const fetchVibeCheckStatus = async (roomId: string) => {
+    try {
+      const res = await fetch(`/api/vibe-check?roomId=${roomId}&_t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.activeVibeCheck) {
+          setActiveVibeCheck(data.activeVibeCheck);
+          setShowVibeAlert(true);
+        } else {
+          setActiveVibeCheck(null);
+        }
+        if (data.latestVibeCheck) {
+          setLatestVibeCheck(data.latestVibeCheck);
+        }
+      }
+    } catch {}
+  };
+
   const fetchData = async () => {
     const { data: roomData, error } = await supabase
       .from('rooms')
@@ -688,6 +739,7 @@ export default function RoomPage() {
 
     if (roomData) {
       setRoom(roomData);
+      fetchVibeCheckStatus(roomData.id);
       setIsLocked(new Date() > new Date(roomData.upload_locked_at));
 
       // Oturum açmışsa bu odayı otomatik olarak kullanıcının geçmişine ekle (direkt linkten geldiyse diye)
@@ -1005,14 +1057,38 @@ export default function RoomPage() {
 
         if (!uploadRes.ok) throw new Error('R2 Yükleme Hatası');
 
-        const finalUploader = deviceModel ? `${uploaderTag}__DEV:${deviceModel}` : uploaderTag;
-        const { data: newPhoto } = await supabase.from('photos').insert({
+        let vibeTag = '';
+        let isLate = false;
+        if (activeVibeCheck) {
+          isLate = Date.now() > new Date(activeVibeCheck.expires_at).getTime();
+          vibeTag = `__VC:${activeVibeCheck.id}:${isLate ? 'LATE' : 'FAST'}`;
+        }
+
+        const finalUploader = (deviceModel ? `${uploaderTag}__DEV:${deviceModel}` : uploaderTag) + vibeTag;
+
+        let insertData: any = {
           room_id: room.id,
           r2_file_key: fileKey,
           original_name: file.name,
           uploaded_by: finalUploader,
           taken_at: takenAt,
-        }).select().single();
+        };
+        if (activeVibeCheck?.id) {
+          insertData.vibe_check_id = activeVibeCheck.id;
+          insertData.is_late = isLate;
+        }
+
+        let newPhoto: any = null;
+        try {
+          const res = await supabase.from('photos').insert(insertData).select().single();
+          if (res.error) throw res.error;
+          newPhoto = res.data;
+        } catch (dbErr) {
+          delete insertData.vibe_check_id;
+          delete insertData.is_late;
+          const retryRes = await supabase.from('photos').insert(insertData).select().single();
+          newPhoto = retryRes.data;
+        }
 
         if (newPhoto?.id) {
           try {
@@ -1590,6 +1666,87 @@ export default function RoomPage() {
     });
   };
 
+
+  // Vibe Check Fotoğrafları Listesi
+  const vibePhotos = useMemo(() => {
+    if (!latestVibeCheck) return [];
+    const targetId = latestVibeCheck.id;
+    return photos
+      .filter((p) => {
+        if (p.vibe_check_id === targetId) return true;
+        if (p.uploaded_by && p.uploaded_by.includes(`__VC:${targetId}`)) return true;
+        const startMs = new Date(latestVibeCheck.started_at).getTime();
+        const endMs = new Date(latestVibeCheck.expires_at).getTime() + 15 * 60 * 1000;
+        const photoMs = new Date(p.created_at || p.taken_at).getTime();
+        return photoMs >= startMs && photoMs <= endMs;
+      })
+      .map((p) => {
+        const parsed = parsePhotoUploader(p.uploaded_by);
+        const isLate = p.is_late !== undefined ? p.is_late : (
+          parsed.isLate || new Date(p.created_at || p.taken_at).getTime() > new Date(latestVibeCheck.expires_at).getTime()
+        );
+        return {
+          ...p,
+          is_late: isLate,
+        };
+      });
+  }, [photos, latestVibeCheck]);
+
+  // Vibe Check Tetikleme Fonksiyonu
+  const handleTriggerVibeCheck = async () => {
+    if (!room?.id) return;
+    setIsTriggeringVibe(true);
+
+    try {
+      const res = await fetch('/api/vibe-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'trigger',
+          roomId: room.id,
+          initiatedBy: currentNickname || localStorage.getItem('snaproom_nickname') || 'Biri',
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        alert(resData.error || 'Vibe Check tetiklenemedi!');
+        return;
+      }
+
+      if (resData.vibeCheck) {
+        setActiveVibeCheck(resData.vibeCheck);
+        setLatestVibeCheck(resData.vibeCheck);
+        setShowVibeAlert(true);
+        playVibeCheckAudio();
+
+        // Realtime kanalı ile herkese anında fırlat
+        channelRef.current?.send?.({
+          type: 'broadcast',
+          event: 'vibe_check_alert',
+          payload: resData.vibeCheck,
+        });
+
+        confetti({
+          particleCount: 80,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#FF2E93', '#CCFF00', '#FFFFFF', '#FFAA00'],
+        });
+      }
+    } catch (e: any) {
+      alert(`Bağlantı hatası: ${e?.message || 'Bilinmeyen hata'}`);
+    } finally {
+      setIsTriggeringVibe(false);
+    }
+  };
+
+  const handleVibePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(e.target.files);
+    }
+  };
+
   const handleQuotaExceeded = (msg: string) => {
     setStorageModalMsg(msg);
     setShowStorageModal(true);
@@ -2105,6 +2262,18 @@ export default function RoomPage() {
             )}
           </AnimatePresence>
 
+          {/* ⚡ O ANIN VİTRİNİ (VIBE CHECK SPLIT BENTO SHOWCASE) */}
+          {latestVibeCheck && (
+            <VibeCheckShowcase
+              vibeCheck={latestVibeCheck}
+              photos={vibePhotos}
+              capsuleName={capsuleName}
+              getMediaUrl={getMediaUrl}
+              onTakePhoto={() => vibeCameraInputRef.current?.click()}
+              isActive={Boolean(activeVibeCheck && new Date(activeVibeCheck.expires_at).getTime() > Date.now())}
+            />
+          )}
+
           {/* BOŞ DURUM (EMPTY STATE) */}
           {photos.length === 0 ? (
             <motion.div
@@ -2351,6 +2520,24 @@ export default function RoomPage() {
                         </div>
                       )}
 
+                      {/* VIBE CHECK ROZETİ */}
+                      {(() => {
+                        const parsed = parsePhotoUploader(photo.uploaded_by);
+                        if (photo.vibe_check_id || parsed.vibeCheckId) {
+                          const isLate = photo.is_late ?? parsed.isLate;
+                          return (
+                            <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full text-[9px] font-mono font-black shadow-lg pointer-events-none flex items-center gap-1 bg-black/75 backdrop-blur-sm border border-white/20">
+                              {isLate ? (
+                                <span className="text-amber-400">🐢 Geç Kaldı</span>
+                              ) : (
+                                <span className="text-[#CCFF00]">⚡ Zamanında</span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
                       {/* GÜNÜN KAPAĞI TAÇ ROZETİ */}
                       {photo.id === coverPhoto?.id && reactions[coverPhoto.id]?.length > 0 && (
                         <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-black font-black text-[9px] flex items-center gap-1 shadow-lg shadow-amber-500/40 pointer-events-none">
@@ -2451,6 +2638,19 @@ export default function RoomPage() {
 
           {/* Orta Butonlar: Tinder Ayıkla + Ses Kaydet + Dev Fotoğraf Bas */}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-center sm:justify-end">
+            {/* VIBE CHECK TETİKLEME BUTONU */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleTriggerVibeCheck}
+              disabled={isTriggeringVibe}
+              title="🚨 Anlık Vibe Check Patlat (3 Dk Rulet)"
+              className="flex items-center gap-1 px-3 py-2.5 sm:px-3.5 sm:py-2.5 rounded-full bg-gradient-to-r from-red-600/30 to-amber-500/30 hover:from-red-600/50 hover:to-amber-500/50 border border-red-500/50 text-red-300 hover:text-white font-black text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0"
+            >
+              <Zap className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+              <span className="inline">Vibe</span>
+            </motion.button>
+
             {/* TINDER SWIPE MODU BUTONU */}
             <motion.button
               whileHover={{ scale: 1.05 }}
