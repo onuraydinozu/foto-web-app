@@ -24,6 +24,8 @@ import ChatDrawer from '@/components/ChatDrawer';
 import ReceiptModal from '@/components/ReceiptModal';
 import VibeCheckAlert, { playVibeCheckAudio } from '@/components/VibeCheckAlert';
 import VibeCheckShowcase from '@/components/VibeCheckShowcase';
+import SelfieReactionModal, { SelfieReactionPayload } from '@/components/SelfieReactionModal';
+import SelfieReactionStack, { SelfieReactionItem } from '@/components/SelfieReactionStack';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
 
 
@@ -302,6 +304,10 @@ export default function RoomPage() {
   // Floating reactions: photoId -> emoji array
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
 
+  // Canlı Selfie Reaksiyonları (Locket / BeReal Avatar Stack): photoId -> SelfieReactionItem[]
+  const [selfieReactions, setSelfieReactions] = useState<Record<string, SelfieReactionItem[]>>({});
+  const [selfieTargetPhoto, setSelfieTargetPhoto] = useState<any | null>(null);
+
   // Kapsül Kapanış Raporu (Mini Recap)
   const [showRecapModal, setShowRecapModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -558,6 +564,19 @@ export default function RoomPage() {
           }));
         }
       })
+      .on('broadcast', { event: 'selfie_reaction' }, ({ payload }) => {
+        if (payload?.reaction) {
+          const r = payload.reaction;
+          setSelfieReactions((prev) => {
+            const list = prev[r.photo_id] || [];
+            if (list.some((existing) => existing.id === r.id)) return prev;
+            return {
+              ...prev,
+              [r.photo_id]: [...list, r],
+            };
+          });
+        }
+      })
       .on('broadcast', { event: 'photo_deleted' }, ({ payload }) => {
         if (payload?.photoId) {
           serverDeletedSet.current.add(payload.photoId);
@@ -760,6 +779,18 @@ export default function RoomPage() {
       setRoom(roomData);
       fetchVibeCheckStatus(roomData.id);
       setIsLocked(new Date() > new Date(roomData.upload_locked_at));
+
+      // Canlı Selfie Reaksiyonlarını Çek
+      try {
+        fetch(`/api/reactions?roomId=${roomData.id}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.reactions) {
+              setSelfieReactions(data.reactions);
+            }
+          })
+          .catch(() => {});
+      } catch (e) {}
 
       // Oturum açmışsa bu odayı otomatik olarak kullanıcının geçmişine ekle (direkt linkten geldiyse diye)
       try {
@@ -1685,6 +1716,54 @@ export default function RoomPage() {
     });
   };
 
+  const handleAddSelfieReaction = async (payload: SelfieReactionPayload) => {
+    if (!room) return;
+    try {
+      const res = await fetch('/api/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: room.id,
+          photoId: payload.photoId,
+          userName: payload.userName,
+          selfieData: payload.selfieData,
+          emoji: payload.emoji,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.reaction) {
+        // Yerel durumu anında güncelle
+        setSelfieReactions((prev) => ({
+          ...prev,
+          [payload.photoId]: [...(prev[payload.photoId] || []), data.reaction],
+        }));
+
+        // Realtime broadcast: Tüm katılımcılara canlı uçur
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'selfie_reaction',
+          payload: { reaction: data.reaction },
+        });
+
+        // Mini kutlama konfetisi
+        confetti({
+          particleCount: 25,
+          spread: 50,
+          origin: { y: 0.7 },
+          colors: ['#CCFF00', '#FF2E93', '#FFFFFF'],
+        });
+
+        setLiveToast({
+          msg: `📸 @${payload.userName} canlı yüz tepkisini yapıştırdı!`,
+          id: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.error('Selfie reaction submit error:', err);
+    }
+  };
+
 
   // Vibe Check Fotoğrafları Listesi
   const vibePhotos = useMemo(() => {
@@ -2548,6 +2627,17 @@ export default function RoomPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              setSelfieTargetPhoto(photo);
+                            }}
+                            title="Canlı Yüz Reaksiyonu Ver 📸"
+                            className="p-1.5 rounded-full bg-black/70 hover:bg-[#CCFF00] hover:text-black text-amber-300 backdrop-blur-md transition cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setChatReplyPhoto(photo);
                               setShowChatDrawer(true);
                             }}
@@ -2615,19 +2705,34 @@ export default function RoomPage() {
                         );
                       })()}
 
-                      {/* Reaksiyon Emojileri */}
-                      <div className="absolute bottom-2 right-2 flex flex-wrap gap-1 max-w-[80px] pointer-events-none">
-                        {photoReactions.map((emoji, i) => (
-                          <motion.span
-                            key={i}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="text-xs bg-black/60 rounded-full px-1 py-0.5 backdrop-blur-sm"
-                          >
-                            {emoji}
-                          </motion.span>
-                        ))}
+                      {/* CANLI YÜZ REAKSİYONU (LOCKET STYLE AVATAR STACK) */}
+                      <div className="absolute bottom-2.5 right-2.5 z-20">
+                        <SelfieReactionStack
+                          reactions={selfieReactions[photo.id] || []}
+                          onAddReaction={
+                            !isDisposableLocked && !isSelectMode
+                              ? () => setSelfieTargetPhoto(photo)
+                              : undefined
+                          }
+                          size="sm"
+                        />
                       </div>
+
+                      {/* Standart Emojiler (Selfie yoksa) */}
+                      {photoReactions.length > 0 && !(selfieReactions[photo.id]?.length > 0) && (
+                        <div className="absolute bottom-2 right-2 flex flex-wrap gap-1 max-w-[80px] pointer-events-none">
+                          {photoReactions.map((emoji, i) => (
+                            <motion.span
+                              key={i}
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="text-xs bg-black/60 rounded-full px-1 py-0.5 backdrop-blur-sm"
+                            >
+                              {emoji}
+                            </motion.span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Polaroid Alt Not & Lokasyon Alanı (El Yazısı Hissi) */}
@@ -3363,6 +3468,15 @@ export default function RoomPage() {
                 }}
                 className="absolute inset-y-0 left-[35%] right-[35%] cursor-pointer z-10"
               />
+
+              {/* CANLI YÜZ REAKSİYONLARI YIĞINI (LOCKET AVATAR STACK ON STORY) */}
+              <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 pointer-events-auto">
+                <SelfieReactionStack
+                  reactions={selfieReactions[currentStoryPhoto.id] || []}
+                  onAddReaction={() => setSelfieTargetPhoto(currentStoryPhoto)}
+                  size="md"
+                />
+              </div>
             </div>
 
             {/* 4. ALT REAKSİYON BARI (INSTAGRAM STORY EMOJİ ÇUBUĞU) */}
@@ -3370,15 +3484,29 @@ export default function RoomPage() {
               className="absolute bottom-4 inset-x-0 z-30 flex items-center justify-center gap-3 px-4"
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-2 sm:gap-3 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/15 shadow-2xl">
-                {['🔥', '💀', '🫠', '✨', '📸'].map((emoji) => (
+              <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-full bg-black/70 backdrop-blur-md border border-white/15 shadow-2xl">
+                {/* 📸 Canlı Yüz Reaksiyonu Butonu */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelfieTargetPhoto(currentStoryPhoto);
+                  }}
+                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gradient-to-r from-[#CCFF00]/20 to-emerald-400/20 border border-[#CCFF00]/60 hover:border-[#CCFF00] text-[#CCFF00] font-black text-xs flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg shadow-[#CCFF00]/15"
+                >
+                  <Camera className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Canlı Tepki</span>
+                </button>
+
+                <div className="w-[1px] h-4 bg-white/20" />
+
+                {['🔥', '💀', '🫠', '✨'].map((emoji) => (
                   <button
                     key={emoji}
                     onClick={(e) => {
                       e.stopPropagation();
                       addReaction(currentStoryPhoto.id, emoji);
                     }}
-                    className="p-1.5 sm:p-2 rounded-full hover:bg-white/15 text-2xl hover:scale-125 transition-transform cursor-pointer"
+                    className="p-1 sm:p-1.5 rounded-full hover:bg-white/15 text-xl sm:text-2xl hover:scale-125 transition-transform cursor-pointer"
                   >
                     {emoji}
                   </button>
@@ -3735,6 +3863,15 @@ export default function RoomPage() {
         reactions={reactions}
         spotifyUrl={room?.spotify_url}
         parsePhotoUploader={parsePhotoUploader}
+      />
+
+      {/* CANLI YÜZ REAKSİYONU (LOCKET STYLE SELFIE MODAL) */}
+      <SelfieReactionModal
+        isOpen={!!selfieTargetPhoto}
+        onClose={() => setSelfieTargetPhoto(null)}
+        targetPhoto={selfieTargetPhoto}
+        currentUserName={currentNickname}
+        onSubmit={handleAddSelfieReaction}
       />
     </div>
   );
