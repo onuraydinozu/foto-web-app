@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Car, Star, Navigation, Vote, Send, Sparkles, Bot } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-// @ts-ignore
-import { useChat } from '@ai-sdk/react';
 
 interface PlaceRadarDrawerProps {
   isOpen: boolean;
@@ -13,6 +11,13 @@ interface PlaceRadarDrawerProps {
   roomId: string;
   currentUserNick: string;
   channel: any;
+}
+
+interface MessageItem {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  places?: any[];
 }
 
 const QUICK_PROMPTS = [
@@ -26,16 +31,15 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
   const [votingFor, setVotingFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, append, isLoading } = useChat({
-    api: '/api/places/ai-chat',
-    initialMessages: [
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: 'Selam! Nereye akıyoruz? Bana semti ve ne tarz bir yer aradığını söyle (Örn: Moda\'da sakin kahveci, Kadıköy sınırsız tavuk).'
-      }
-    ]
-  }) as any;
+  const [messages, setMessages] = useState<MessageItem[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: "Selam! Nereye akıyoruz? Bana semti ve ne tarz bir yer aradığını söyle (Örn: Moda'da sakin kahveci, Kadıköy sınırsız tavuk)."
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Mobil Scroll Kilidi
   useEffect(() => {
@@ -62,6 +66,54 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  const sendMessage = async (textToSend: string) => {
+    if (!textToSend.trim() || isLoading) return;
+    const userText = textToSend.trim();
+    setInput('');
+    const userMsg: MessageItem = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userText
+    };
+
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/places/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: nextMessages })
+      });
+
+      if (!res.ok) throw new Error('Sunucu yanıt vermedi');
+      const data = await res.json();
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.content || '',
+          places: data.places || []
+        }
+      ]);
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'Ufak bir bağlantı aksaması oldu. Tekrar dener misin?',
+          places: []
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleVote = async (place: any) => {
     setVotingFor(place.place_id);
@@ -90,10 +142,6 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       setVotingFor(null);
       alert('Oylama masaya gönderildi! (60s)');
     }, 1000);
-  };
-
-  const handleQuickPrompt = (prompt: string) => {
-    append({ role: 'user', content: prompt });
   };
 
   return (
@@ -136,7 +184,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 custom-scrollbar pb-32">
-              {messages.map((m: any) => (
+              {messages.map(m => (
                 <div key={m.id} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                   {m.content && (
                     <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
@@ -154,79 +202,68 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                     </div>
                   )}
 
-                  {/* Render Tool Invocations (Places) */}
-                  {m.toolInvocations?.map((toolInvocation: any) => {
-                    if (toolInvocation.toolName === 'show_places' && 'result' in toolInvocation) {
-                      const places = toolInvocation.result;
-                      return (
-                        <div key={toolInvocation.toolCallId} className="w-full mt-3 space-y-3">
-                          {places.map((place: any, idx: number) => (
-                            <div key={place.place_id || idx} className="bg-[#12151F] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-md w-full max-w-[90%]">
-                              <div className="p-3 space-y-2">
-                                <div className="flex justify-between items-start">
-                                  <h4 className="font-bold text-white text-sm line-clamp-1 flex-1 flex items-center gap-1.5">
-                                    <MapPin className="w-3.5 h-3.5 text-[#CCFF00]" />
-                                    {place.name}
-                                  </h4>
-                                  <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-amber-300 border border-amber-300/20 flex items-center gap-1 shrink-0">
-                                    <Star className="w-3 h-3 fill-amber-300" />
-                                    {place.rating}
-                                  </div>
-                                </div>
-                                
-                                <p className="text-xs text-neutral-400 italic">"{place.reason}"</p>
-                                
-                                <div className="flex flex-wrap gap-2 text-[10px] font-mono text-neutral-400">
-                                  <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
-                                    📍 {place.district}
-                                  </span>
-                                  {place.parking_note && (
-                                    <span className="flex items-center gap-1 bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded-full border border-blue-500/20">
-                                      <Car className="w-3 h-3" /> {place.parking_note}
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                <div className="flex gap-2 pt-1 mt-1 border-t border-white/5">
-                                  <button 
-                                    onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ' ' + place.district)}`, '_blank')}
-                                    className="flex-1 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 text-xs font-bold transition flex items-center justify-center gap-1.5 border border-white/10"
-                                  >
-                                    <Navigation className="w-3 h-3" /> Harita
-                                  </button>
-                                  <button 
-                                    onClick={() => handleVote(place)}
-                                    disabled={votingFor === place.place_id}
-                                    className="flex-[1.5] py-1.5 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
-                                  >
-                                    {votingFor === place.place_id ? (
-                                      <span className="animate-pulse">Gönderiliyor...</span>
-                                    ) : (
-                                      <>
-                                        <Vote className="w-3 h-3" /> Masaya Oylat
-                                      </>
-                                    )}
-                                  </button>
-                                </div>
+                  {/* Render Places if returned */}
+                  {m.places && m.places.length > 0 && (
+                    <div className="w-full mt-3 space-y-3">
+                      {m.places.map((place: any, idx: number) => (
+                        <div key={place.place_id || idx} className="bg-[#12151F] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-md w-full max-w-[90%]">
+                          <div className="p-3 space-y-2">
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-bold text-white text-sm line-clamp-1 flex-1 flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-[#CCFF00]" />
+                                {place.name}
+                              </h4>
+                              <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-amber-300 border border-amber-300/20 flex items-center gap-1 shrink-0">
+                                <Star className="w-3 h-3 fill-amber-300" />
+                                {place.rating}
                               </div>
                             </div>
-                          ))}
+                            
+                            <p className="text-xs text-neutral-400 italic">"{place.reason}"</p>
+                            
+                            <div className="flex flex-wrap gap-2 text-[10px] font-mono text-neutral-400">
+                              <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
+                                📍 {place.district}
+                              </span>
+                              {place.parking_note && (
+                                <span className="flex items-center gap-1 bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded-full border border-blue-500/20">
+                                  <Car className="w-3 h-3" /> {place.parking_note}
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="flex gap-2 pt-1 mt-1 border-t border-white/5">
+                              <button 
+                                onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ' ' + place.district)}`, '_blank')}
+                                className="flex-1 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 text-xs font-bold transition flex items-center justify-center gap-1.5 border border-white/10"
+                              >
+                                <Navigation className="w-3 h-3" /> Harita
+                              </button>
+                              <button 
+                                onClick={() => handleVote(place)}
+                                disabled={votingFor === place.place_id}
+                                className="flex-[1.5] py-1.5 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+                              >
+                                {votingFor === place.place_id ? (
+                                  <span className="animate-pulse">Gönderiliyor...</span>
+                                ) : (
+                                  <>
+                                    <Vote className="w-3 h-3" /> Masaya Oylat
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      );
-                    } else if (toolInvocation.toolName === 'show_places') {
-                      return (
-                        <div key={toolInvocation.toolCallId} className="mt-2 text-[#CCFF00] text-xs flex items-center gap-1.5 animate-pulse">
-                          <Sparkles className="w-3 h-3" /> Mekanlar aranıyor...
-                        </div>
-                      );
-                    }
-                  })}
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               
-              {isLoading && messages[messages.length-1]?.role === 'user' && (
+              {isLoading && (
                 <div className="text-neutral-500 text-xs flex items-center gap-1.5 animate-pulse">
-                  <Bot className="w-3 h-3" /> Gurme yazıyor...
+                  <Bot className="w-3 h-3" /> Gurme düşünüyor...
                 </div>
               )}
             </div>
@@ -238,7 +275,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                   {QUICK_PROMPTS.map((qp, i) => (
                     <button
                       key={i}
-                      onClick={() => handleQuickPrompt(qp)}
+                      onClick={() => sendMessage(qp)}
                       className="shrink-0 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-neutral-300 hover:bg-[#CCFF00]/10 hover:text-[#CCFF00] transition"
                     >
                       {qp}
@@ -247,11 +284,17 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                 </div>
               )}
               
-              <form onSubmit={handleSubmit} className="relative flex items-center">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendMessage(input);
+                }} 
+                className="relative flex items-center"
+              >
                 <input
                   type="text"
                   value={input}
-                  onChange={handleInputChange}
+                  onChange={(e) => setInput(e.target.value)}
                   placeholder="Örn: Sınırsız tavukçu, sessiz teras kafe..."
                   className="w-full bg-black/50 border border-white/15 rounded-2xl pl-4 pr-12 py-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#CCFF00] transition"
                   disabled={isLoading}
@@ -259,7 +302,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 p-2 rounded-xl bg-[#CCFF00] text-black disabled:opacity-30 transition"
+                  className="absolute right-2 p-2 rounded-xl bg-[#CCFF00] text-black disabled:opacity-30 transition cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
                 </button>
