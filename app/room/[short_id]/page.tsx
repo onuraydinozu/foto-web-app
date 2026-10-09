@@ -23,10 +23,12 @@ const AuthModal = dynamic(() => import('@/components/AuthModal'), { ssr: false }
 const YoutubePlayer = dynamic(() => import('@/components/YoutubePlayer'), { ssr: false });
 const SwipeCuratorModal = dynamic(() => import('@/components/SwipeCuratorModal'), { ssr: false });
 const ChatDrawer = dynamic(() => import('@/components/ChatDrawer'), { ssr: false });
+const PlaceRadarDrawer = dynamic(() => import('@/components/PlaceRadarDrawer'), { ssr: false });
 const ReceiptModal = dynamic(() => import('@/components/ReceiptModal'), { ssr: false });
 const ReelsGeneratorModal = dynamic(() => import('@/components/ReelsGeneratorModal'), { ssr: false });
 const SelfieReactionModal = dynamic(() => import('@/components/SelfieReactionModal'), { ssr: false });
 const VibeCheckAlert = dynamic(() => import('@/components/VibeCheckAlert'), { ssr: false });
+const PlaceVoteAlert = dynamic(() => import('@/components/PlaceVoteAlert'), { ssr: false });
 
 // Dinamik Confetti Yükleyici
 const triggerConfetti = async (opts?: any) => {
@@ -321,6 +323,7 @@ export default function RoomPage() {
   const [activeVibeCheck, setActiveVibeCheck] = useState<any>(null);
   const [latestVibeCheck, setLatestVibeCheck] = useState<any>(null);
   const [showVibeAlert, setShowVibeAlert] = useState(false);
+  const [activePlaceVote, setActivePlaceVote] = useState<any>(null);
   const [isTriggeringVibe, setIsTriggeringVibe] = useState(false);
   const vibeCameraInputRef = useRef<HTMLInputElement>(null);
   const pendingVibeCheckIdRef = useRef<string | null>(null);
@@ -369,6 +372,7 @@ export default function RoomPage() {
   // Kapsül Kapanış Raporu (Mini Recap)
   const [showRecapModal, setShowRecapModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showPlaceRadar, setShowPlaceRadar] = useState(false);
   const [showSwipeModal, setShowSwipeModal] = useState(false);
   const [showReelsModal, setShowReelsModal] = useState(false);
   const [isClosingSoon, setIsClosingSoon] = useState(false);
@@ -656,6 +660,12 @@ export default function RoomPage() {
           setLatestVibeCheck(payload);
           setShowVibeAlert(true);
           playVibeCheckAudio();
+        }
+      })
+      .on('broadcast', { event: 'place_vote_start' }, ({ payload }) => {
+        if (payload) {
+          setActivePlaceVote(payload);
+          playVibeCheckAudio(); // Ortak bir ses kullanabiliriz
         }
       })
       .on('broadcast', { event: 'chat_message' }, ({ payload }) => {
@@ -2478,6 +2488,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 
           {/* DÜĞME IZGARASI (Mobilde alt alta 2-3 kolon ızgara, masaüstünde esnek şerit) */}
           <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-2 py-1">
+
             {/* 1. MÜZİK (YOUTUBE ŞARKI ARA & OYNAT) */}
             <button
               onClick={() => setShowYoutubeModal(true)}
@@ -3011,6 +3022,17 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 
           {/* SAĞ: HIZLI AKSİYONLAR (Ses Kaydet & Vibe) */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* YENİ: MEKAN RADARI BUTONU */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowPlaceRadar(true)}
+              title="Mekan Radarı (AI)"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#CCFF00]/20 hover:bg-[#CCFF00]/30 border border-[#CCFF00]/40 text-[#CCFF00] flex items-center justify-center transition cursor-pointer shadow-sm active:scale-95"
+            >
+              <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </motion.button>
+
             {/* SES KAYDET BUTONU */}
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -4021,6 +4043,15 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
         roomShortId={room?.short_id || params.short_id}
       />
 
+      {/* MEKAN RADARI ÇEKMECESİ */}
+      <PlaceRadarDrawer
+        isOpen={showPlaceRadar}
+        onClose={() => setShowPlaceRadar(false)}
+        roomId={room?.id || params.short_id}
+        currentUserNick={currentNickname}
+        channel={channelRef.current}
+      />
+
       {/* SOHBET & DM ÇEKMECESİ */}
       <ChatDrawer
         isOpen={showChatDrawer}
@@ -4090,6 +4121,16 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
           />
         )}
       </AnimatePresence>
+
+      {/* YENİ: MEKAN OYLAMASI ALERT */}
+      {activePlaceVote && (
+        <PlaceVoteAlert
+          voteData={activePlaceVote}
+          onClose={() => setActivePlaceVote(null)}
+          roomId={room?.id || params.short_id}
+          currentUserNick={currentNickname}
+        />
+      )}
     </div>
   );
 }
