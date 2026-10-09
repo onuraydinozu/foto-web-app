@@ -152,16 +152,23 @@ function PhotoCardComponent({
       {/* Polaroid Medya Alanı */}
       <div className="relative aspect-square rounded-xl overflow-hidden bg-neutral-900">
         {isVideo ? (
-          <video
-            src={getMediaUrl(photo.r2_file_key)}
-            muted
-            playsInline
-            loop
-            autoPlay
-            className={`object-cover w-full h-full ${
-              isDisposableLocked ? 'blur-2xl scale-125 filter' : ''
-            }`}
-          />
+          <>
+            <video
+              src={getMediaUrl(photo.r2_file_key)}
+              muted
+              playsInline
+              preload="metadata"
+              className={`object-cover w-full h-full ${
+                isDisposableLocked ? 'blur-2xl scale-125 filter' : ''
+              }`}
+            />
+            {!isDisposableLocked && (
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 border border-white/20 text-[9px] font-mono font-bold text-white flex items-center gap-1 pointer-events-none z-10 backdrop-blur-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#CCFF00] animate-pulse" />
+                <span>VIDEO</span>
+              </div>
+            )}
+          </>
         ) : (
           <img
             src={getMediaUrl(photo.r2_file_key, { thumb: true })}

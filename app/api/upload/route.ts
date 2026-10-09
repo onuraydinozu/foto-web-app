@@ -15,8 +15,21 @@ const s3 = new S3Client({
   },
 });
 
-// Cloudflare R2 üzerindeki toplam kullanılan alanı (Byte) hesaplar
+// Cloudflare R2 üzerindeki toplam kullanılan alanı (Byte) hesaplar (60 saniye in-memory cache)
+let cachedUsedBytes = 0;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 60 * 1000;
+
+function invalidateStorageCache() {
+  lastCacheTime = 0;
+}
+
 async function getBucketUsedBytes(): Promise<number> {
+  const now = Date.now();
+  if (cachedUsedBytes > 0 && (now - lastCacheTime < CACHE_TTL_MS)) {
+    return cachedUsedBytes;
+  }
+
   try {
     let total = 0;
     let continuationToken: string | undefined = undefined;
@@ -36,10 +49,12 @@ async function getBucketUsedBytes(): Promise<number> {
       continuationToken = res.NextContinuationToken;
     } while (continuationToken);
 
+    cachedUsedBytes = total;
+    lastCacheTime = now;
     return total;
   } catch (err) {
     console.error("R2 Depolama boyutu sorgulama hatası:", err);
-    return 0;
+    return cachedUsedBytes || 0;
   }
 }
 
@@ -200,6 +215,7 @@ export async function DELETE(req: Request) {
       }
     }
 
+    invalidateStorageCache();
     return NextResponse.json({ success: true, deletedId: photoId });
   } catch (error) {
     console.error("Fotoğraf silme hatası:", error);

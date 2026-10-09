@@ -894,24 +894,7 @@ export default function RoomPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [storyIndex, storyItems]);
 
-  // Eski Görseller İçin Lazy EXIF Okuma (Arka planda sessizce cihazı çözer)
-  useEffect(() => {
-    photos.forEach(async (photo) => {
-      if (/\.(mp4|webm|mov|m4v)$/i.test(photo.original_name || photo.r2_file_key)) return;
-      if (photo.original_name?.startsWith('Sesli Anı')) return;
-
-      const parsed = parsePhotoUploader(photo.uploaded_by);
-      if (!parsed.device && !deviceMap[photo.id]) {
-        try {
-          const exifData = await exifr.parse(getMediaUrl(photo.r2_file_key), ['Make', 'Model']);
-          const cleaned = formatDeviceName(exifData?.Make, exifData?.Model);
-          if (cleaned) {
-            setDeviceMap((prev) => ({ ...prev, [photo.id]: cleaned }));
-          }
-        } catch (e) {}
-      }
-    });
-  }, [photos]);
+  // Cihaz bilgisi yükleme anında uploaderTag içinde kaydedilmektedir; arka planda yüzlerce MB dosya indirilmez.
 
 
   // ==========================================
@@ -1996,12 +1979,13 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         }}
       />
 
-      {/* AMBİYANS IŞIKLARI */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[350px] bg-[#7928CA]/20 rounded-full blur-[140px]" />
-        <div className="absolute top-1/3 right-10 w-[450px] h-[400px] bg-[#FF2E93]/15 rounded-full blur-[150px]" />
-        <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-[#CCFF00]/10 rounded-full blur-[160px]" />
-      </div>
+      {/* AMBİYANS IŞIKLARI - SIFIR GPU & BELLEK YÜKÜ (CSS Radial Gradients) */}
+      <div 
+        className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-50"
+        style={{
+          background: 'radial-gradient(circle at 20% 15%, rgba(121,40,202,0.18) 0%, transparent 45%), radial-gradient(circle at 80% 35%, rgba(255,46,147,0.14) 0%, transparent 45%), radial-gradient(circle at 30% 75%, rgba(204,255,0,0.08) 0%, transparent 40%)'
+        }}
+      />
 
       {/* OTOMATİK GÜNÜN KAPAĞI AMBİYANS IŞIĞI */}
       {coverPhoto && (
@@ -2483,21 +2467,13 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             />
           )}
 
-          {/* BOŞ DURUM (EMPTY STATE) */}
+          {/* BOŞ DURUM (EMPTY STATE - Hemen Görünür, Sıfır Lag) */}
           {photos.length === 0 ? (
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', damping: 20 }}
+            <div
               onClick={() => fileInputRef.current?.click()}
-              className="group relative my-4 sm:my-8 py-8 sm:py-14 px-4 sm:px-6 rounded-3xl bg-white/[0.02] border border-white/10 hover:border-[#CCFF00]/40 backdrop-blur-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all overflow-hidden"
+              className="group relative my-4 sm:my-8 py-8 sm:py-14 px-4 sm:px-6 rounded-3xl bg-[#12151F] border border-white/15 hover:border-[#CCFF00]/40 flex flex-col items-center justify-center text-center cursor-pointer transition-all overflow-hidden shadow-2xl"
             >
-              <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#CCFF00]/15 rounded-full blur-[100px] pointer-events-none group-hover:bg-[#CCFF00]/25 transition-all" />
-
-              <motion.div
-                whileHover={{ scale: 1.08, rotate: 0 }}
-                className="-rotate-6 w-36 sm:w-56 bg-white p-2.5 sm:p-3 pb-6 sm:pb-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/40 mb-4 sm:mb-6 transition-transform"
-              >
+              <div className="-rotate-6 w-36 sm:w-56 bg-white p-2.5 sm:p-3 pb-6 sm:pb-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/40 mb-4 sm:mb-6 transition-transform hover:rotate-0">
                 <div className="aspect-[4/3] rounded-xl bg-gradient-to-tr from-[#12151F] to-[#252A3D] flex flex-col items-center justify-center text-center p-3 sm:p-4 border border-neutral-800">
                   <Globe className="w-8 h-8 sm:w-10 sm:h-10 text-[#CCFF00] mb-1 sm:mb-2 drop-shadow-[0_0_15px_rgba(204,255,0,0.6)]" />
                   <span className="font-mono text-[9px] sm:text-[10px] text-neutral-400">ORTAK KAPSÜL #01</span>
@@ -2505,7 +2481,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                 <p className="mt-2 sm:mt-3 text-center font-bold text-neutral-800 text-[11px] sm:text-xs">
                   günün ilk anı ✨
                 </p>
-              </motion.div>
+              </div>
 
               <div className="space-y-1.5 sm:space-y-2 max-w-sm">
                 <h3 className="text-xl sm:text-2xl font-black text-white flex items-center justify-center gap-2">
@@ -2541,7 +2517,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                   <span>Ses Kaydet 🎙️</span>
                 </button>
               </div>
-            </motion.div>
+            </div>
           ) : (
             /* ========================================================
                MODERN POLAROID GRID (ZAMAN TÜNELİ DİZİLİMİ - DÜZGÜN & HİZALI)
@@ -2632,12 +2608,12 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
       {/* ========================================================
           ALT YÜZEN DOCK (Fotoğraf Bas, Ses Kaydet, ZIP İndir)
          ======================================================== */}
-      <div className="fixed bottom-4 sm:bottom-6 bottom-[calc(1rem+env(safe-area-inset-bottom))] inset-x-0 z-40 px-2 sm:px-4 pointer-events-none">
-        <motion.div
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ type: 'spring', damping: 20 }}
-          className="max-w-xl mx-auto pointer-events-auto bg-[#12151F] md:bg-[#12151F]/95 md:backdrop-blur-sm border border-white/20 rounded-full px-2.5 sm:px-3 py-2 sm:py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar"
+      <div 
+        className="fixed inset-x-0 z-40 px-2 sm:px-4 pointer-events-none"
+        style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
+      >
+        <div
+          className="max-w-xl mx-auto pointer-events-auto bg-[#12151F] border border-white/20 rounded-full px-2.5 sm:px-3 py-2 sm:py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar"
         >
           {/* Sol: İstatistikler */}
           <div className="pl-1 hidden sm:block shrink-0">
@@ -2745,7 +2721,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
               )}
             </motion.button>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* ========================================================
