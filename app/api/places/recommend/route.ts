@@ -156,64 +156,23 @@ async function handleFoursquareSearch(params: {
     const data = await response.json();
     const results = Array.isArray(data.results) ? data.results : [];
 
-    const formattedPlaces = results.map((item: any, idx: number) => {
-      const name = item.name || 'Mekan';
-      const itemLat = item.geocodes?.main?.latitude || lat || null;
-      const itemLon = item.geocodes?.main?.longitude || lng || null;
-
-      // İlçe / Mahalle Belirleme
-      const itemDistrict =
-        item.location?.neighborhood?.[0] ||
-        item.location?.locality ||
-        item.location?.suburb ||
-        targetDistrict;
-
-      // Adres
-      const address = item.location?.formatted_address || item.location?.address || `${itemDistrict}, İstanbul`;
-
-      // Mesafe: Foursquare metre döner (e.g. 450m -> 0.5 km)
-      let distanceStr: string | null = null;
-      let distanceKm: number | null = null;
-      if (typeof item.distance === 'number') {
-        const km = item.distance / 1000;
-        distanceStr = `${km.toFixed(1)} km`;
-        distanceKm = Number(km.toFixed(1));
-      }
-
-      // Puan: Foursquare 10 üzerinden döner (e.g. 8.8 -> 4.4 / 5)
-      let ratingStr = '4.4';
-      if (typeof item.rating === 'number') {
-        ratingStr = (item.rating / 2).toFixed(1);
-      } else {
-        ratingStr = (4.2 + ((idx * 3) % 6) * 0.1).toFixed(1);
-      }
-
-      // Fotoğraf
-      let photoUrl: string | null = null;
-      if (Array.isArray(item.photos) && item.photos.length > 0) {
-        const p = item.photos[0];
-        photoUrl = `${p.prefix}original${p.suffix}`;
-      }
-
-      // Google Maps Linki (İşletme adı ve koordinatlarla)
-      const mapsUrl = itemLat && itemLon
-        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + (itemDistrict || ''))}&query_place_id=${itemLat},${itemLon}`
-        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + (itemDistrict || ''))}`;
+    const formattedPlaces = (data.results || []).map((item: any, idx: number) => {
+      const name = item.name;
+      const address = item.location?.formatted_address || item.location?.address || `${targetDistrict}, İstanbul`;
+      const distanceKm = item.distance ? `${(item.distance / 1000).toFixed(1)} km` : null;
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + (item.location?.locality || targetDistrict || ''))}`;
+      const districtName = item.location?.locality || item.location?.neighborhood?.[0] || targetDistrict || 'İstanbul';
 
       return {
-        name: name,
-        district: itemDistrict,
-        distance: distanceStr || (distanceKm !== null ? `${distanceKm.toFixed(1)} km` : undefined),
-        distance_km: distanceKm,
-        rating: ratingStr,
-        category: config.displayName,
-        mapsUrl: mapsUrl,
+        name,
+        address,
+        distance: distanceKm,
+        rating: item.rating ? (item.rating / 2).toFixed(1) : "4.3", // Foursquare 10 puan üzerinden verir, 5'lik sisteme çevir
+        mapsUrl,
+        district: districtName,
         place_id: item.fsq_id || `fsq_${idx}`,
-        photo_url: photoUrl,
-        address: address,
+        category: config.displayName,
         isOpen: true,
-        lat: itemLat,
-        lng: itemLon
       };
     });
 
