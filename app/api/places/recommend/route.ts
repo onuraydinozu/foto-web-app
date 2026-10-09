@@ -20,52 +20,101 @@ export async function POST(req: Request) {
     const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
     
     if (!API_KEY) {
+      const ALL_MOCK_PLACES = [
+        {
+          place_id: "mock_1",
+          name: "Story Coffee Roasters Moda",
+          district: district || "Moda",
+          category: "☕ 3. Nesil Kahve & Tatlı",
+          rating: 4.8,
+          review_count: 1420,
+          price_level: "$$",
+          parking_info: { valet: false, free_lot: false, street: true },
+          lat: lat ? lat + 0.005 : 40.985,
+          lng: lng ? lng + 0.003 : 29.028,
+          photo_url: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=800",
+          distance_km: 0.6
+        },
+        {
+          place_id: "mock_2",
+          name: "Basta! Street Food Bar",
+          district: district || "Kadıköy",
+          category: "🍔 Hızlı / Sokak Lezzeti",
+          rating: 4.7,
+          review_count: 2150,
+          price_level: "$$",
+          parking_info: { valet: false, free_lot: false, street: true },
+          lat: lat ? lat + 0.003 : 40.988,
+          lng: lng ? lng + 0.005 : 29.024,
+          photo_url: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=800",
+          distance_km: 1.1
+        },
+        {
+          place_id: "mock_3",
+          name: "Fauna Trattoria & Pasta",
+          district: district || "Moda",
+          category: "🍝 Oturmalı Yemek (Dinner)",
+          rating: 4.9,
+          review_count: 980,
+          price_level: "$$$",
+          parking_info: { valet: true, free_lot: false, street: false },
+          lat: lat ? lat - 0.002 : 40.982,
+          lng: lng ? lng + 0.002 : 29.031,
+          photo_url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=800",
+          distance_km: 1.4
+        },
+        {
+          place_id: "mock_4",
+          name: "Arkaoda Kadıköy",
+          district: district || "Kadıköy",
+          category: "🍻 Pub / Bar & Gece",
+          rating: 4.5,
+          review_count: 3600,
+          price_level: "$$",
+          parking_info: { valet: false, free_lot: false, street: false },
+          lat: lat ? lat - 0.004 : 40.987,
+          lng: lng ? lng - 0.002 : 29.023,
+          photo_url: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&q=80&w=800",
+          distance_km: 0.9
+        },
+        {
+          place_id: "mock_5",
+          name: "Goblin Oyun Kulübü & Kafe",
+          district: district || "Kadıköy",
+          category: "🎯 Aktivite & Kaos",
+          rating: 4.6,
+          review_count: 820,
+          price_level: "$$",
+          parking_info: { valet: false, free_lot: false, street: true },
+          lat: lat ? lat + 0.006 : 40.991,
+          lng: lng ? lng + 0.004 : 29.027,
+          photo_url: "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&q=80&w=800",
+          distance_km: 1.3
+        },
+        {
+          place_id: "mock_6",
+          name: "Brekkie Croissant & Breakfast",
+          district: district || "Moda",
+          category: "🥐 Kahvaltı & Brunch",
+          rating: 4.8,
+          review_count: 2400,
+          price_level: "$$",
+          parking_info: { valet: false, free_lot: false, street: true },
+          lat: lat ? lat + 0.002 : 40.984,
+          lng: lng ? lng + 0.006 : 29.033,
+          photo_url: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&q=80&w=800",
+          distance_km: 0.8
+        }
+      ];
+
+      // Filter by category if selected, otherwise return all
+      const filtered = category 
+        ? ALL_MOCK_PLACES.filter(p => p.category.includes(category.split(' ')[1] || ''))
+        : ALL_MOCK_PLACES;
+
       return NextResponse.json({
         success: true,
-        data: [
-          {
-            place_id: "mock_1",
-            name: "Mock Kahveci Kadıköy",
-            district: "Kadıköy",
-            category: "☕ 3. Nesil Kahve & Tatlı",
-            rating: 4.8,
-            review_count: 1250,
-            price_level: "$$",
-            parking_info: { valet: false, free_lot: false, street: true },
-            lat: lat ? lat + 0.005 : 40.990,
-            lng: lng ? lng + 0.005 : 29.020,
-            photo_url: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=800",
-            distance_km: 1.2
-          },
-          {
-            place_id: "mock_2",
-            name: "Mock Burger Kadıköy",
-            district: "Kadıköy",
-            category: "🍔 Hızlı / Sokak Lezzeti",
-            rating: 4.5,
-            review_count: 850,
-            price_level: "$",
-            parking_info: { valet: true, free_lot: false, street: false },
-            lat: lat ? lat + 0.008 : 40.995,
-            lng: lng ? lng - 0.003 : 29.015,
-            photo_url: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=800",
-            distance_km: 2.1
-          },
-          {
-            place_id: "mock_3",
-            name: "Mock Pub Moda",
-            district: "Moda",
-            category: "🍻 Pub / Bar & Gece",
-            rating: 4.2,
-            review_count: 3200,
-            price_level: "$$$",
-            parking_info: { valet: false, free_lot: false, street: false },
-            lat: lat ? lat - 0.004 : 40.982,
-            lng: lng ? lng - 0.002 : 29.025,
-            photo_url: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&q=80&w=800",
-            distance_km: 0.8
-          }
-        ],
+        data: filtered.length > 0 ? filtered : ALL_MOCK_PLACES.slice(0, 3),
         source: 'mock'
       });
     }
