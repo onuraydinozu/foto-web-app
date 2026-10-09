@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Car, Star, Navigation, Vote, Send, Sparkles, Bot } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 // @ts-ignore
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 
 interface PlaceRadarDrawerProps {
   isOpen: boolean;
