@@ -81,13 +81,13 @@ export default function CountdownTimer({
 
   return (
     <div
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] sm:text-xs font-mono font-black shrink-0 transition-colors ${
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] sm:text-xs font-mono font-bold shrink-0 transition-colors ${
         isWarning
           ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 animate-pulse'
-          : 'bg-[#FF2E93]/15 border-[#FF2E93]/35 text-[#FF2E93]'
+          : 'bg-white/10 border-white/15 text-neutral-300'
       } ${className}`}
     >
-      <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+      <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-400 shrink-0" />
       <span>{timeLeft}</span>
     </div>
   );

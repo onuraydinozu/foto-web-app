@@ -130,7 +130,7 @@ function PhotoCardComponent({
     <div
       onClick={onCardClick}
       onDoubleClick={onDoubleClick}
-      className={`group relative bg-white text-black p-2 sm:p-2.5 pb-3.5 sm:pb-4 rounded-2xl shadow-xl transition-transform duration-150 cursor-pointer select-none hover:scale-[1.02] active:scale-[0.98] hover:z-20 ${
+      className={`group relative bg-[#F4F4F6] text-neutral-900 border border-black/5 p-2 sm:p-2.5 pb-3.5 sm:pb-4 rounded-2xl shadow-[0_10px_28px_rgba(0,0,0,0.5)] transition-transform duration-150 cursor-pointer select-none hover:scale-[1.02] active:scale-[0.98] hover:z-20 ${
         isSelected ? 'ring-4 ring-[#CCFF00]' : ''
       }`}
     >
@@ -191,9 +191,9 @@ function PhotoCardComponent({
           </div>
         )}
 
-        {/* Aksiyon Butonları (Kamera / Alıntıla / İndir / Sil) - Sade siyah zemin */}
+        {/* Masaüstü Hover Aksiyon Butonları (Mobilde kart tıklanınca tam ekran modal açılır) */}
         {!isDisposableLocked && !isSelectMode && (
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-2 right-2 z-10 hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();

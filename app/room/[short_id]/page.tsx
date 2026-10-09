@@ -119,20 +119,11 @@ function parsePhotoUploader(rawUploader: string) {
   };
 }
 
-function getDeviceBadge(device: string | null | undefined, takenAt: string | Date | null | undefined) {
-  if (!device && !takenAt) return null;
-  const isCamera = device && /canon|nikon|sony|fujifilm|fuji|leica|panasonic|olympus|lumix|hasselblad/i.test(device);
+function getDeviceBadge(device: string | null | undefined, _takenAt?: string | Date | null | undefined) {
+  if (!device) return null;
+  const isCamera = /canon|nikon|sony|fujifilm|fuji|leica|panasonic|olympus|lumix|hasselblad/i.test(device);
   const icon = isCamera ? '📷' : '📱';
-  const timeStr = takenAt ? new Date(takenAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '';
-
-  if (device && timeStr) {
-    return `${icon} ${device} · ${timeStr}`;
-  } else if (device) {
-    return `${icon} ${device}`;
-  } else if (timeStr) {
-    return `🕒 ${timeStr}`;
-  }
-  return null;
+  return `${icon} ${device}`;
 }
 
 
@@ -2106,7 +2097,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
 
       {/* DYNAMIC ISLAND ÜST KAPSÜL (PWA / Mobil Çentik & Dinamik Ada Uyumlu) */}
       <div 
-        className="sticky z-40 px-2 sm:px-6 w-full max-w-4xl mx-auto"
+        className="sticky z-40 px-3 sm:px-6 w-full max-w-5xl mx-auto"
         style={{
           top: 'max(0.5rem, env(safe-area-inset-top, 0.5rem))'
         }}
@@ -2160,7 +2151,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
       </div>
 
       {/* ANA İÇERİK ALANI */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-5 pb-36 pb-[calc(8rem+env(safe-area-inset-bottom))] space-y-5">
+      <main className="max-w-5xl mx-auto w-full px-3 sm:px-6 pt-5 pb-52 pb-[calc(14rem+env(safe-area-inset-bottom,2rem))] space-y-5">
         
         {/* ========================================================
             CANLI SPOTIFY OYNATICI (ODAYA GİRİNCE OTOMATİK ÇALMA)
@@ -2316,18 +2307,6 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
 
           {/* YATAY KAYDIRILABİLİR ARAÇ BUTONLARI (44px dokunma dostu butonlar) */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            {/* 1. SOHBET */}
-            <button
-              onClick={() => {
-                setSelectedChatTarget(null);
-                setShowChatDrawer(true);
-              }}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600/25 to-pink-500/25 hover:from-violet-600/40 hover:to-pink-500/40 border border-violet-500/40 text-violet-200 hover:text-white transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
-            >
-              <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
-              <span className="text-xs font-bold whitespace-nowrap">Sohbet</span>
-            </button>
-
             {/* 2. EN'LER (RECAP) */}
             <button
               onClick={() => {
@@ -2508,7 +2487,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             <div className="flex items-center justify-between">
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
                 <span>Zaman Tüneli</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#CCFF00]/15 text-[#CCFF00] font-mono font-bold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 border border-white/10 text-neutral-300 font-mono font-bold">
                   {photos.length} Anı
                 </span>
               </h2>
@@ -2520,7 +2499,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                 {/* 🔥 AYIKLA (TINDER MODU) BUTONU */}
                 <button
                   onClick={() => setShowSwipeModal(true)}
-                  className="min-h-[46px] w-full text-xs sm:text-sm font-bold px-3 py-2.5 rounded-2xl border border-orange-500/40 bg-gradient-to-r from-orange-500/20 to-pink-500/20 hover:from-orange-500/30 hover:to-pink-500/30 text-white transition cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.25)] active:scale-[0.98]"
+                  className="min-h-[46px] w-full text-xs sm:text-sm font-bold px-3 py-2.5 rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 text-neutral-200 hover:text-white transition cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]"
                 >
                   <Flame className="w-4 h-4 text-orange-400 fill-orange-400 shrink-0" />
                   <span className="truncate">Ayıkla (Tinder)</span>

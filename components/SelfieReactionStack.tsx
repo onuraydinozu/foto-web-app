@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X } from 'lucide-react';
+import { Camera, X } from 'lucide-react';
 
 export interface SelfieReactionItem {
   id: string;
@@ -153,17 +153,17 @@ export default function SelfieReactionStack({
           </div>
         )}
 
-        {/* Canlı Tepki Ekle Butonu (+) */}
+        {/* Canlı Tepki Ekle Butonu (Selfie Kamerası) */}
         {onAddReaction && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onAddReaction();
             }}
-            title="Canlı Yüz Reaksiyonu Ekle"
-            className={`${dimClasses} rounded-full bg-black/80 hover:bg-[#CCFF00] hover:text-black border-2 border-white/80 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer z-20 group ml-1`}
+            title="Canlı Yüz İfadesiyle Tepki Ver 📸"
+            className={`${dimClasses} rounded-full bg-black/85 hover:bg-[#CCFF00] hover:text-black border-2 border-white/80 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer z-20 group ml-1`}
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
+            <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#CCFF00] group-hover:text-black transition-colors" />
           </button>
         )}
       </div>
