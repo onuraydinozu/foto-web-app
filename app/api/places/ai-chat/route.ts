@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateText, tool } from 'ai';
-import { createGoogle } from '@ai-sdk/google';
-import { z } from 'zod';
+import { GoogleGenAI } from '@google/genai';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -10,141 +8,122 @@ export async function POST(req: Request) {
   try {
     const { messages, userCoords } = await req.json();
 
-    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    const placesApiKey = process.env.GOOGLE_PLACES_API_KEY || geminiApiKey;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    if (!geminiApiKey) {
-      console.error('[AI Chat Error]: GEMINI_API_KEY veya GOOGLE_GENERATIVE_AI_API_KEY bulunamadı!');
+    // 1. API Anahtarı Kontrolü
+    if (!apiKey) {
+      console.error('[Gemini AI]: GEMINI_API_KEY çevre değişkeni bulunamadı!');
       return NextResponse.json(
         { error: 'GEMINI_API_KEY eksik! Lütfen Vercel veya .env.local ortam değişkenlerine ekleyin.' },
         { status: 500 }
       );
     }
 
-    const google = createGoogle({ apiKey: geminiApiKey });
+    const ai = new GoogleGenAI({ apiKey });
 
-    const formattedMessages = (messages || []).map((m: any) => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.content || ''
-    }));
+    // Son kullanıcı mesajı ve mesaj geçmişi
+    const conversationHistory = (messages || [])
+      .map((m: any) => `${m.role === 'user' ? 'Kullanıcı' : 'Gurme'}: ${m.content}`)
+      .join('\n');
 
-    let fetchedPlaces: any[] = [];
+    const lastUserMessage = messages?.filter((m: any) => m.role === 'user')?.pop()?.content || '';
 
-    // @ts-ignore
-    const searchGooglePlaces = tool({
-      description: 'Google Places API (New) üzerinden gerçek canlı mekanları arar. Kullanıcı bir semt ve istek belirttiğinde bu aracı çağırmak ZORUNLUDUR.',
-      // @ts-ignore
-      parameters: z.object({
-        query: z.string().describe('Aranacak mekan türü veya yemek (örn: "gece açık yemek", "sınırsız tavuk", "sakin kafe")'),
-        district: z.string().describe('Kullanıcının belirttiği veya konumundan anlaşılan semt/ilçe adı (örn: "Çekmeköy", "Sancaktepe", "Kadıköy")'),
-        lat: z.number().optional().describe('Kullanıcı GPS enlem değeri'),
-        lng: z.number().optional().describe('Kullanıcı GPS boylam değeri')
-      }) as any,
-      // @ts-ignore
-      execute: async ({ query, district, lat, lng }: any) => {
-        if (!placesApiKey) {
-          throw new Error('GOOGLE_PLACES_API_KEY tanımlanmamış. Lütfen Vercel ortam değişkenlerine ekleyin.');
+    const locationContext = userCoords?.lat && userCoords?.lng
+      ? `Kullanıcının anlık cihaz GPS koordinatları: Enlem ${userCoords.lat}, Boylam ${userCoords.lng}.`
+      : `Kullanıcı henüz GPS konumu paylaşmadı.`;
+
+    const prompt = `Sen bir arkadaş grubunun dobra, açık sözlü ve nokta atışı tavsiye veren "Masa Gurmesi" yapay zekasısın.
+${locationContext}
+
+KONUŞMA GEÇMİŞİ:
+${conversationHistory}
+
+KULLANICININ SON İSTEĞİ:
+"${lastUserMessage}"
+
+GÖREVİN VE KURALLAR:
+1. Google Search Grounding (Canlı Google Araması) aracını kullanarak kullanıcının istediği semtteki (Örn: Sancaktepe, Çekmeköy, Kadıköy, Beşiktaş vb.) gerçek, canlı ve açık mekanları Google'da ara.
+2. ASLA hafızandan veya hayal gücünden mekan uydurma. Yalnızca canlı Google arama sonuçlarında bulduğun gerçek mekanları listele.
+3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse, arama yapmadan önce kısaca samimi bir dille hangi semtte olduğunu sor.
+4. Eğer semt ve istek belliyse, canlı Google aramasından bulduğun gerçek mekanları (en fazla 3 mekan) aşağıdaki JSON formatında bir kod bloğu ('''json ... ''') olarak cevabının sonuna iliştir:
+
+\`\`\`json
+[
+  {
+    "name": "Mekan Adı",
+    "district": "Semt / İlçe",
+    "rating": "4.5",
+    "summary": "Neden önerildiği, ortamı ve açık olma durumu hakkında 1 cümle",
+    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Mekan+Adi+Semt"
+  }
+]
+\`\`\`
+
+5. JSON bloğunun üstünde ise arkadaşına anlatır gibi dobra, 2-3 cümlelik samimi yorumunu yap. Giriş tekerlemesi veya robotik kurumsal nezaket cümleleri kurma.`;
+
+    console.log(`[Gemini Grounding Call]: Prompt sending to gemini-flash-latest with tools: [{ googleSearch: {} }]`);
+
+    // 2. Gemini Live Google Search Grounding Çağrısı
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }]
         }
-
-        const effectiveLat = lat ?? userCoords?.lat;
-        const effectiveLng = lng ?? userCoords?.lng;
-        const hasGps = typeof effectiveLat === 'number' && typeof effectiveLng === 'number';
-
-        const textQuery = `${district} ${query}`.trim();
-        console.log(`[AI Tool -> Google Places Call]: textQuery="${textQuery}"`);
-
-        const googleApiUrl = 'https://places.googleapis.com/v1/places:searchText';
-        const requestBody: any = {
-          textQuery,
-          languageCode: 'tr',
-          maxResultCount: 4
-        };
-
-        if (hasGps) {
-          requestBody.locationBias = {
-            circle: {
-              center: { latitude: effectiveLat, longitude: effectiveLng },
-              radius: 4000.0
-            }
-          };
+      });
+    } catch (modelErr: any) {
+      console.warn('gemini-flash-latest failed, trying gemini-3.8-flash:', modelErr.message);
+      // Fallback model
+      response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }]
         }
+      });
+    }
 
-        const fieldMask = 'places.displayName,places.rating,places.formattedAddress,places.googleMapsUri,places.photos';
+    const fullText = response?.text || '';
+    console.log(`[Gemini Grounding Response]: Length = ${fullText.length}`);
 
-        const gRes = await fetch(googleApiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': placesApiKey,
-            'X-Goog-FieldMask': fieldMask
-          },
-          body: JSON.stringify(requestBody)
-        });
+    // 3. JSON Mekan Kartlarını Ayıkla
+    let places: any[] = [];
+    let cleanContent = fullText;
 
-        if (!gRes.ok) {
-          const errText = await gRes.text();
-          console.error(`[Google Places API Failed]: ${gRes.status} - ${errText}`);
-          throw new Error(`Google Places API Hatası (${gRes.status}): ${errText}`);
-        }
-
-        const gData = await gRes.json();
-        const places = gData.places || [];
-
-        if (places.length > 0) {
-          const mapped = places.map((p: any, idx: number) => ({
-            place_id: p.id || `google_${idx}`,
-            name: p.displayName?.text || 'Mekan',
-            rating: p.rating || 4.2,
-            address: p.formattedAddress || district,
-            district: district,
-            googleMapsUri: p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.displayName?.text || '') + ' ' + (p.formattedAddress || ''))}`,
-            photo_url: p.photos?.[0]?.name ? `https://places.googleapis.com/v1/${p.photos[0].name}/media?maxHeightPx=600&maxWidthPx=800&key=${placesApiKey}` : null,
-            reason: p.rating ? `Puanı ${p.rating} olan gerçek Google Haritalar mekanı.` : 'Google Haritalar üzerinden bulundu.'
+    const jsonMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+        if (Array.isArray(parsed)) {
+          places = parsed.map((p: any, idx: number) => ({
+            place_id: `gemini_ground_${idx}`,
+            name: p.name || 'Mekan',
+            district: p.district || '',
+            rating: p.rating || '4.5',
+            reason: p.summary || p.reason || 'Canlı Google aramasında önerilen mekan.',
+            mapsUrl: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`,
+            googleMapsUri: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`
           }));
-          fetchedPlaces = mapped;
-          return mapped;
         }
-
-        return [];
+        // Temiz metin: JSON bloğunu metinden çıkar
+        cleanContent = fullText.replace(/```(?:json)?[\s\S]*?```/g, '').trim();
+      } catch (e) {
+        console.error('Failed to parse places JSON from Gemini response:', e);
       }
-    });
-
-    const locationInfo = userCoords?.lat && userCoords?.lng
-      ? `Kullanıcının canlı GPS koordinatları: [Enlem: ${userCoords.lat}, Boylam: ${userCoords.lng}].`
-      : `Kullanıcının GPS koordinatı kapalı veya paylaşılmadı.`;
-
-    const systemPrompt = `Sen bir mekan gurmesi yapay zeka asistanısın.
-${locationInfo}
-
-GÖREVLERİN:
-1. Kullanıcının tüm mesaj geçmişini dikkatle takip et.
-2. Kullanıcı bir semt adı söylediğinde (Örn: Çekmeköy, Sancaktepe, Kadıköy, Beşiktaş vb.) veya konum verdiğinde bunu anla. Çekmeköy veya başka bir semt dendiğinde ASLA tekrar "hangi semttesiniz" diye sorma!
-3. Kullanıcının istediği semt ve mekan türü için ZORUNLU OLARAK 'searchGooglePlaces' aracını çağır ve canlı verileri çek.
-4. ASLA hafızandan uydurma mekan söyleme. Sadece 'searchGooglePlaces' aracından dönen gerçek mekanları aktar.
-5. Kullanıcıya dobra, arkadaş canlısı ve samimi bir dille mekanları 2-3 cümleyle tanıt.
-6. Eğer kullanıcı ne aradığını veya nerede olduğunu henüz söylemediyse samimi bir dille kısaca sor.`;
-
-    const result = await generateText({
-      model: google('gemini-1.5-flash'),
-      system: systemPrompt,
-      messages: formattedMessages,
-      // @ts-ignore
-      tools: {
-        searchGooglePlaces: searchGooglePlaces
-      },
-      // @ts-ignore
-      maxSteps: 3
-    });
+    }
 
     return NextResponse.json({
-      content: result.text || 'İşte bulduğum gerçek mekanlar:',
-      places: fetchedPlaces
+      content: cleanContent || 'İşte canlı Google aramasıyla bulduğum mekanlar:',
+      places
     });
 
   } catch (error: any) {
-    console.error('[AI Chat Fatal Error]:', error);
+    console.error('[Gemini AI Grounding Fatal Error]:', error);
+    // Hata varsa kesinlikle maskeleme, HTTP 500 ile açıkça sebebi dön
     return NextResponse.json(
-      { error: error.message || 'Yapay zeka servisinde bir hata oluştu.' },
+      { error: error.message || 'Gemini yapay zeka servisinde bir hata oluştu.' },
       { status: 500 }
     );
   }
