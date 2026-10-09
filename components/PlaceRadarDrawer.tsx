@@ -324,7 +324,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
   };
 
   const handleVote = async (place: any) => {
-    setVotingFor(place.place_id);
+    setVotingFor(place.place_id || place.name);
     if (channel) {
       channel.send({
         type: 'broadcast',
@@ -546,7 +546,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                   ) : (
                     <div className="flex flex-col gap-3">
                       {places.map((place, idx) => (
-                        <div key={place.place_id || idx} className="bg-[#12151F] border border-white/10 rounded-2xl overflow-hidden flex flex-col glass-panel shadow-md">
+                        <div key={place.place_id || place.name || idx} className="bg-[#12151F] border border-white/10 rounded-2xl overflow-hidden flex flex-col glass-panel shadow-md">
                           <div className="h-28 relative bg-neutral-900">
                             {place.photo_url || place.photoUrl ? (
                               <img src={place.photo_url || place.photoUrl} alt={place.name} className="w-full h-full object-cover opacity-80" />
@@ -583,7 +583,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                                 </span>
                               )}
                               <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
-                                📍 {place.district}
+                                📍 {place.district || district}
                               </span>
                               {place.category && (
                                 <span className="flex items-center gap-1 bg-white/5 text-neutral-300 px-2 py-0.5 rounded-full border border-white/10">
@@ -607,7 +607,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                                 onClick={() => {
                                   const targetUrl = place.mapsUrl || place.googleMapsUri || (place.lat && place.lng
                                     ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`
-                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.district || ''}`)}`);
+                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.district || district || ''}`)}`);
                                   window.open(targetUrl, '_blank');
                                 }}
                                 className="flex-1 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 text-xs font-bold transition flex items-center justify-center gap-1.5 border border-white/10 cursor-pointer"
@@ -617,10 +617,10 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                               </button>
                               <button 
                                 onClick={() => handleVote(place)}
-                                disabled={votingFor === place.place_id}
+                                disabled={votingFor === (place.place_id || place.name)}
                                 className="flex-[1.5] py-1.5 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer active:scale-95"
                               >
-                                {votingFor === place.place_id ? (
+                                {votingFor === (place.place_id || place.name) ? (
                                   <span className="animate-pulse">Gönderiliyor...</span>
                                 ) : (
                                   <>
