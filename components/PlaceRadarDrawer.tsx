@@ -207,7 +207,10 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       const res = await fetch('/api/places/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages })
+        body: JSON.stringify({
+          messages: nextMessages,
+          userCoords: location ? { lat: location.lat, lng: location.lng } : null
+        })
       });
 
       if (!res.ok) throw new Error('Sunucu yanıt vermedi');
