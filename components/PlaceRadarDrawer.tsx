@@ -213,7 +213,10 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
         })
       });
 
-      if (!res.ok) throw new Error('Sunucu yanıt vermedi');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Sunucu hatası (${res.status})`);
+      }
       const data = await res.json();
 
       setMessages(prev => [
@@ -225,13 +228,13 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
           places: data.places || []
         }
       ]);
-    } catch (err) {
+    } catch (err: any) {
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'Ufak bir bağlantı aksaması oldu. Tekrar dener misin?',
+          content: `⚠️ ${err.message || 'Bağlantı hatası oluştu.'}`,
           places: []
         }
       ]);
