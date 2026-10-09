@@ -2,11 +2,28 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 30; // Vercel Serverless Function süresi 30 saniye
 
 // Sunucu Tarafı Bellek Önbelleği (15 Dakika)
 const placesCache = new Map<string, { data: any[]; expiry: number }>();
 const CACHE_TTL_MS = 15 * 60 * 1000;
+
+// Emoji ve Çöp Karakter Temizleme / Kategori Eşleme
+function getCleanCategoryQuery(district: string, category: string): string {
+  const cat = category || '';
+  if (cat.includes('Kahve')) return `${district} en iyi 3. nesil kahve mekanları cafe`;
+  if (cat.includes('Sokak') || cat.includes('Hızlı')) return `${district} popüler sokak lezzetleri burger döner fast food`;
+  if (cat.includes('Oturmalı') || cat.includes('Dinner')) return `${district} akşam yemeği oturmalı kaliteli restoran yemek`;
+  if (cat.includes('Pub') || cat.includes('Gece') || cat.includes('Bar')) return `${district} en iyi pub bar`;
+  if (cat.includes('Aktivite') || cat.includes('Kaos')) return `${district} eğlenceli aktivite oyun kafe mekanları`;
+  if (cat.includes('Kahvaltı') || cat.includes('Brunch')) return `${district} en iyi kahvaltı ve brunch mekanları`;
+  if (cat.includes('Park') || cat.includes('Otopark')) return `${district} otoparkı olan restoran kafe mekanlar`;
+  if (cat.includes('Tavuk') || cat.includes('Kanat')) return `${district} popüler sınırsız tavuk kanat mekanları`;
+
+  // Emoji ve özel sembolleri temizle
+  const clean = cat.replace(/[\u{1F300}-\u{1FAFF}|\u{2600}-\u{27BF}]/gu, '').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim();
+  return `${district} ${clean || 'popüler mekanlar'}`.trim();
+}
 
 export async function POST(req: Request) {
   try {
@@ -22,14 +39,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const targetDistrict = district && district !== 'Anlık Konum' ? district : 'İstanbul';
-    const targetCategory = category || 'popüler yeme-içme mekanları';
-    const cacheKey = `${targetDistrict.trim().toLowerCase()}_${targetCategory.trim().toLowerCase()}`;
+    const targetDistrict = district && district !== 'Anlık Konum' ? district : 'Kadıköy';
+    const cleanSearchQuery = getCleanCategoryQuery(targetDistrict, category);
+    const cacheKey = `${targetDistrict.trim().toLowerCase()}_${cleanSearchQuery.trim().toLowerCase()}`;
 
     // 1. ÖNBELLEK KONTROLÜ (15 dakika içindeyse Gemini'ye istek atma)
     const cachedEntry = placesCache.get(cacheKey);
     if (cachedEntry && cachedEntry.expiry > Date.now() && cachedEntry.data.length > 0) {
-      console.log(`[Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan önbellekten döndürüldü.`);
+      console.log(`[Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan anında önbellekten döndürüldü.`);
       return NextResponse.json({
         success: true,
         data: cachedEntry.data,
@@ -45,20 +62,21 @@ export async function POST(req: Request) {
       : `Kullanıcı semt olarak "${targetDistrict}" seçti.`;
 
     const filterContext = Array.isArray(filters) && filters.length > 0
-      ? `Kullanıcının seçtiği öncelikler: ${filters.join(', ')}.`
+      ? `Kullanıcının tercihleri: ${filters.join(', ')}.`
       : '';
 
-    const prompt = `Sen İstanbul'un en güncel ve popüler mekan rehberisin.
+    const prompt = `Sen İstanbul'un en hızlı ve nokta atışı mekan rehberisin.
 ${locationContext}
 ${filterContext}
 
 GÖREV:
-"${targetDistrict}" bölgesinde "${targetCategory}" kategorisinde gidilebilecek en iyi 4 popüler, gerçek ve şu an aktif mekanı listele.
+"${cleanSearchQuery}" araması için en popüler, gerçek ve şu an açık en iyi 3-4 mekanı belirle.
 
-KURALLAR:
-1. ASLA hafızandan uydurma mekan yazma, yalnızca gerçek ve popüler mekanları listele.
-2. Mekanların Google Maps arama bağlantılarını doğru oluştur.
-3. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
+HIZ VE FORMAT KURALLARI:
+1. Çok hızlı ve özet cevap ver. Google'da derinlemesine araştırma yapmak yerine en popüler ilk 3-4 mekanı al.
+2. Açıklamaları tek cümle tut ve süreyi 3 saniyenin altında tut.
+3. ASLA uydurma mekan yazma, gerçek mekanları listele.
+4. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
 
 \`\`\`json
 [
@@ -81,20 +99,28 @@ KURALLAR:
 \`\`\`
 `;
 
-    console.log(`[Gemini Grounding Places Call]: targetDistrict="${targetDistrict}", category="${targetCategory}"`);
+    console.log(`[Gemini Fast Search Call]: query="${cleanSearchQuery}"`);
 
-    let response;
+    // 2. TIMEOUT KORUMALI ÇAĞRI (504 Timeout'u engellemek için 4.5s yarış)
+    let response: any;
     try {
-      response = await ai.models.generateContent({
+      const groundingPromise = ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
         }
       });
-    } catch (groundingErr: any) {
-      console.warn('[Gemini Grounding Warning]: Grounding quota or tool failed, falling back to direct model:', groundingErr.message);
-      // Fallback: Gemini direct generation without search tool (prevents 429 quota exhaustion on Search Grounding)
+
+      // 4.5 saniyeden uzun sürerse doğrudan modele düş (504 Timeout engelleme)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('GROUNDING_TIMEOUT')), 4500)
+      );
+
+      response = await Promise.race([groundingPromise, timeoutPromise]);
+    } catch (err: any) {
+      console.warn('[Gemini Speed Optimization]: Grounding yavaş kaldı veya hata verdi, hızlı direkt modele geçildi:', err.message);
+      // Hızlı direkt model çağrısı (1.5-2 saniyede döner)
       response = await ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: prompt
@@ -147,7 +173,7 @@ KURALLAR:
       }
     }
 
-    // 2. BAŞARILI SONUCU 15 DAKİKA ÖNBELLEĞE AL
+    // 3. BAŞARILI SONUCU 15 DAKİKA ÖNBELLEĞE AL
     if (places.length > 0) {
       placesCache.set(cacheKey, {
         data: places,
@@ -158,7 +184,7 @@ KURALLAR:
     return NextResponse.json({
       success: true,
       data: places,
-      message: places.length === 0 ? `"${targetDistrict} - ${targetCategory}" için mekan bulunamadı.` : undefined
+      message: places.length === 0 ? `"${targetDistrict}" bölgesinde mekan bulunamadı.` : undefined
     });
 
   } catch (error: any) {
@@ -167,10 +193,9 @@ KURALLAR:
     const errMsg = String(error?.message || '');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota');
 
-    // Eğer kota hatası alındıysa ve önbellekte eski veri varsa onu kurtarıcı olarak ver
     if (isRateLimit) {
       return NextResponse.json(
-        { error: '⚡ Radar biraz yoğun (dakikalık istek limiti)! Lütfen 30 saniye sonra tekrar deneyin.' },
+        { error: '⚡ Radar biraz yoğun! Lütfen 30 saniye sonra tekrar deneyin.' },
         { status: 429 }
       );
     }

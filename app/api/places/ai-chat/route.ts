@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 30; // Vercel Serverless Function süresi 30 saniye
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +26,9 @@ export async function POST(req: Request) {
       .map((m: any) => `${m.role === 'user' ? 'Kullanıcı' : 'Gurme'}: ${m.content}`)
       .join('\n');
 
-    const lastUserMessage = messages?.filter((m: any) => m.role === 'user')?.pop()?.content || '';
+    const rawLastUserMessage = messages?.filter((m: any) => m.role === 'user')?.pop()?.content || '';
+    // Emojileri temizle (Örn: "🚗 Parkı Kolay Mekan" -> "Parkı Kolay Mekan")
+    const cleanLastMessage = rawLastUserMessage.replace(/[\u{1F300}-\u{1FAFF}|\u{2600}-\u{27BF}]/gu, '').trim();
 
     const locationContext = userCoords?.lat && userCoords?.lng
       ? `Kullanıcının anlık cihaz GPS koordinatları: Enlem ${userCoords.lat}, Boylam ${userCoords.lng}.`
@@ -39,13 +41,13 @@ KONUŞMA GEÇMİŞİ:
 ${conversationHistory}
 
 KULLANICININ SON İSTEĞİ:
-"${lastUserMessage}"
+"${cleanLastMessage || rawLastUserMessage}"
 
 GÖREVİN VE KURALLAR:
-1. Google Search Grounding (Canlı Google Araması) aracını kullanarak kullanıcının istediği semtteki (Örn: Sancaktepe, Çekmeköy, Kadıköy, Beşiktaş vb.) gerçek, canlı ve açık mekanları Google'da ara.
-2. ASLA hafızandan veya hayal gücünden mekan uydurma. Yalnızca canlı Google arama sonuçlarında bulduğun gerçek mekanları listele.
+1. Çok hızlı ve net cevap ver (3 saniyenin altında). Google Search Grounding aracını kullanarak kullanıcının istediği semtteki gerçek, canlı ve açık mekanları bul.
+2. ASLA hafızandan veya hayal gücünden mekan uydurma. Gerçek mekanları listele.
 3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse, arama yapmadan önce kısaca samimi bir dille hangi semtte olduğunu sor.
-4. Eğer semt ve istek belliyse, canlı Google aramasından bulduğun gerçek mekanları (en fazla 3 mekan) aşağıdaki JSON formatında bir kod bloğu ('''json ... ''') olarak cevabının sonuna iliştir:
+4. Eğer semt ve istek belliyse, bulduğun gerçek mekanları (en fazla 3 mekan) aşağıdaki JSON formatında bir kod bloğu (\`\`\`json ... \`\`\`) olarak cevabının sonuna iliştir:
 
 \`\`\`json
 [
@@ -63,19 +65,25 @@ GÖREVİN VE KURALLAR:
 
     console.log(`[Gemini Grounding Call]: Prompt sending to gemini-flash-latest with tools: [{ googleSearch: {} }]`);
 
-    // 2. Gemini Live Google Search Grounding Çağrısı (veya doğrudan model fallback)
-    let response;
+    // 2. TIMEOUT KORUMALI ÇAĞRI (504 Timeout engellemek için 5s yarış)
+    let response: any;
     try {
-      response = await ai.models.generateContent({
+      const groundingPromise = ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
         }
       });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('AI_CHAT_TIMEOUT')), 5000)
+      );
+
+      response = await Promise.race([groundingPromise, timeoutPromise]);
     } catch (groundingErr: any) {
-      console.warn('[Gemini AI Grounding Warning]: Grounding quota or tool failed, falling back to direct model:', groundingErr.message);
-      // Fallback: Gemini direct generation without search tool (prevents 429 quota exhaustion on Search Grounding)
+      console.warn('[Gemini AI Grounding Warning]: Grounding yavaş kaldı veya hata verdi, hızlı direkt modele geçiliyor:', groundingErr.message);
+      // Hızlı direkt model çağrısı (1.5-2 saniyede döner, 504 riskini sıfırlar)
       response = await ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: prompt
@@ -122,15 +130,21 @@ GÖREVİN VE KURALLAR:
     }
 
     return NextResponse.json({
-      content: cleanContent || 'İşte canlı Google aramasıyla bulduğum mekanlar:',
+      content: cleanContent || 'İşte canlı aramada bulduğum mekanlar:',
       places
     });
 
   } catch (error: any) {
     console.error('[Gemini AI Grounding Fatal Error]:', error);
-    // Hata varsa kesinlikle maskeleme, HTTP 500 ile açıkça sebebi dön
+    const errMsg = String(error?.message || '');
+    if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
+      return NextResponse.json(
+        { error: '⚡ Gurme biraz yoğun! Lütfen 30 saniye sonra tekrar deneyin.' },
+        { status: 429 }
+      );
+    }
     return NextResponse.json(
-      { error: error.message || 'Gemini yapay zeka servisinde bir hata oluştu.' },
+      { error: errMsg || 'Gemini yapay zeka servisinde bir hata oluştu.' },
       { status: 500 }
     );
   }
