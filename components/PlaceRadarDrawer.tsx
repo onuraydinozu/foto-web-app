@@ -478,6 +478,12 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                             <div className="flex justify-between items-start">
                               <h4 className="font-bold text-white text-sm line-clamp-1 flex-1">{place.name}</h4>
                             </div>
+
+                            {(place.summary || place.reason) && (
+                              <p className="text-xs text-neutral-400 italic line-clamp-2">
+                                "{place.summary || place.reason}"
+                              </p>
+                            )}
                             
                             <div className="flex flex-wrap gap-2 text-[10px] font-mono text-neutral-400">
                               {place.distance_km !== null && place.distance_km !== undefined && (
@@ -504,10 +510,10 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                             <div className="flex gap-2 pt-1 mt-1 border-t border-white/5">
                               <button 
                                 onClick={() => {
-                                  const query = place.lat && place.lng
-                                    ? `${place.lat},${place.lng}`
-                                    : encodeURIComponent(`${place.name} ${place.district}`);
-                                  window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+                                  const targetUrl = place.mapsUrl || place.googleMapsUri || (place.lat && place.lng
+                                    ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`
+                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.district || ''}`)}`);
+                                  window.open(targetUrl, '_blank');
                                 }}
                                 className="flex-1 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 text-xs font-bold transition flex items-center justify-center gap-1.5 border border-white/10 cursor-pointer"
                               >
