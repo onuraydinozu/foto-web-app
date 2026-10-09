@@ -13,7 +13,7 @@ import {
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
   Music, Check, UploadCloud, Flame, Camera, Users, Trophy,
   Trash2, CheckSquare, Square, FileDown, Layers,
-  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare
+  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare, Receipt
 } from 'lucide-react';
 import exifr from 'exifr';
 import AuthModal from '@/components/AuthModal';
@@ -21,6 +21,7 @@ import PollsCard from '@/components/PollsCard';
 import YoutubePlayer from '@/components/YoutubePlayer';
 import SwipeCuratorModal from '@/components/SwipeCuratorModal';
 import ChatDrawer from '@/components/ChatDrawer';
+import ReceiptModal from '@/components/ReceiptModal';
 import VibeCheckAlert, { playVibeCheckAudio } from '@/components/VibeCheckAlert';
 import VibeCheckShowcase from '@/components/VibeCheckShowcase';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
@@ -303,6 +304,7 @@ export default function RoomPage() {
 
   // Kapsül Kapanış Raporu (Mini Recap)
   const [showRecapModal, setShowRecapModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showSwipeModal, setShowSwipeModal] = useState(false);
   const [isClosingSoon, setIsClosingSoon] = useState(false);
 
@@ -1977,6 +1979,23 @@ export default function RoomPage() {
               >
                 <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline text-xs font-bold">Recap</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowReceiptModal(true);
+                  confetti({
+                    particleCount: 40,
+                    spread: 60,
+                    origin: { y: 0.2 },
+                    colors: ['#000000', '#FFFFFF', '#CCFF00'],
+                  });
+                }}
+                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/30 text-neutral-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Günün Faturası (Receiptify Tarzı Fiş)"
+              >
+                <Receipt className="w-3.5 h-3.5 text-amber-300" />
+                <span className="hidden sm:inline text-xs font-bold">Fiş</span>
               </button>
             </div>
           </div>
@@ -3653,6 +3672,17 @@ export default function RoomPage() {
               <div className="pt-2 relative z-10 space-y-2">
                 <button
                   onClick={() => {
+                    setShowRecapModal(false);
+                    setShowReceiptModal(true);
+                  }}
+                  className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <Receipt className="w-4 h-4 text-amber-300" />
+                  <span>🧾 Günün Faturasını Kes (Receiptify)</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     const c2 = recapData.card2 ? `${recapData.card2.icon} ${recapData.card2.title}: @${recapData.card2.nick} (${recapData.card2.tag})\n` : '';
                     const c3 = recapData.card3 ? `${recapData.card3.isFlame ? '🔥' : '📸'} ${recapData.card3.title}: @${recapData.card3.nick} (${recapData.card3.tag})\n` : '';
                     const text = `📸 "${capsuleName}" Kapanış Raporu ✨\n\n🏆 ${recapData.topUploader.title}: @${recapData.topUploader.nick} (${recapData.topUploader.count} kare)\n${c2}${c3}\nToplam ${recapData.totalPhotos} anı birikti! 🎉`;
@@ -3691,6 +3721,20 @@ export default function RoomPage() {
         getMediaUrl={getMediaUrl}
         replyPhoto={chatReplyPhoto}
         onClearReplyPhoto={() => setChatReplyPhoto(null)}
+      />
+
+      {/* GÜNÜN FATURASI (RECEIPTIFY TARZI FİŞ MODALI) */}
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        capsuleName={capsuleName}
+        roomShortId={room?.short_id || params.short_id}
+        createdAt={room?.created_at || new Date().toISOString()}
+        uploadLockedAt={room?.upload_locked_at}
+        photos={photos}
+        reactions={reactions}
+        spotifyUrl={room?.spotify_url}
+        parsePhotoUploader={parsePhotoUploader}
       />
     </div>
   );
