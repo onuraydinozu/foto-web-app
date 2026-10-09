@@ -284,6 +284,37 @@ export default function RoomPage() {
   // Sohbet & DM Çekmecesi Durumları
   const [showChatDrawer, setShowChatDrawer] = useState(false);
   const [chatReplyPhoto, setChatReplyPhoto] = useState<any | null>(null);
+  const [selectedChatTarget, setSelectedChatTarget] = useState<string | null>(null);
+  const [recentChat, setRecentChat] = useState<{ sender: string; text: string; time?: string } | null>(null);
+
+  const openDirectChatWith = (nick: string) => {
+    setSelectedChatTarget(nick);
+    setShowChatDrawer(true);
+  };
+
+  // Swipe-to-Chat (Sağdan Sola Kaydırınca Sohbeti Aç)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const dx = touchStartRef.current.x - e.changedTouches[0].clientX;
+    const dy = touchStartRef.current.y - e.changedTouches[0].clientY;
+    // Kullanıcı sağdan sola en az 65px kaydırdıysa ve dikey kaydırma baskın değilse
+    if (dx > 65 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (recentChat?.sender && recentChat.sender !== currentNickname) {
+        setSelectedChatTarget(recentChat.sender);
+      }
+      setShowChatDrawer(true);
+    }
+    touchStartRef.current = null;
+  };
 
   // Vibe Check (Senkronize Fotoğraf Ruleti) Durumları
   const [activeVibeCheck, setActiveVibeCheck] = useState<any>(null);
@@ -617,6 +648,15 @@ export default function RoomPage() {
           playVibeCheckAudio();
         }
       })
+      .on('broadcast', { event: 'chat_message' }, ({ payload }) => {
+        if (payload?.sender_name) {
+          setRecentChat({
+            sender: payload.sender_name,
+            text: payload.text || (payload.media_type === 'audio' ? '🎙️ Sesli Not' : payload.media_type === 'video' ? '🎬 5s Video' : '📷 Medya'),
+            time: 'şimdi',
+          });
+        }
+      })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'photos' },
@@ -819,6 +859,22 @@ export default function RoomPage() {
         });
         setPhotos(activePhotos);
       }
+
+      // Hızlı DM ve Son Sohbet Hapı için son mesajı al
+      try {
+        const chatRes = await fetch(`/api/chat?roomId=${roomData.id}`);
+        if (chatRes.ok) {
+          const chatJson = await chatRes.json();
+          if (chatJson.messages && chatJson.messages.length > 0) {
+            const lastMsg = chatJson.messages[chatJson.messages.length - 1];
+            setRecentChat({
+              sender: lastMsg.sender_name,
+              text: lastMsg.text || (lastMsg.media_type === 'audio' ? '🎙️ Sesli Not' : lastMsg.media_type === 'video' ? '🎬 5s Video' : '📷 Medya'),
+              time: 'az önce',
+            });
+          }
+        }
+      } catch (e) {}
     }
   };
 
@@ -1964,6 +2020,8 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
           processFiles(e.dataTransfer.files);
         }
       }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className="relative min-h-screen text-[#F3F4F6] pb-36 selection:bg-[#CCFF00] selection:text-black overflow-x-hidden"
       style={{
         paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0.75rem))',
@@ -2141,6 +2199,28 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                 <Receipt className="w-3.5 h-3.5 text-amber-300" />
                 <span className="hidden sm:inline text-xs font-bold">Fiş</span>
               </button>
+
+              {/* TINDER SWIPE MODU BUTONU */}
+              <button
+                onClick={() => setShowSwipeModal(true)}
+                disabled={photos.length === 0}
+                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-orange-400 transition flex items-center gap-1 cursor-pointer disabled:opacity-30"
+                title="Tinder Modunda Ayıkla (Swipe)"
+              >
+                <Flame className="w-3.5 h-3.5 fill-orange-400" />
+                <span className="hidden sm:inline text-xs font-bold">Ayıkla</span>
+              </button>
+
+              {/* 10S REELS KLİP BUTONU */}
+              <button
+                onClick={() => setShowReelsModal(true)}
+                disabled={photos.length === 0}
+                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-[#CCFF00]/20 border border-white/10 hover:border-[#CCFF00]/40 text-[#CCFF00] transition flex items-center gap-1 cursor-pointer disabled:opacity-30"
+                title="10s Beat-Sync Video Özeti Yap"
+              >
+                <Film className="w-3.5 h-3.5 text-[#CCFF00]" />
+                <span className="hidden sm:inline text-xs font-bold">Klip</span>
+              </button>
             </div>
           </div>
 
@@ -2254,19 +2334,23 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
 
         {/* Kullanıcı Kimliği & Canlı Varlık & Günün Kapağı Şeridi */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 sm:p-3 rounded-2xl bg-[#12151F]/60 backdrop-blur-sm border border-white/10 text-xs shadow-lg">
-          {/* Sol: Kullanıcı Rumuzu */}
-          <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#CCFF00] shrink-0" />
-            <span className="text-[11px] sm:text-xs text-neutral-300 font-mono truncate">
-              👤 @{currentNickname || 'Anonim'} {currentCity ? `· 📍 ${currentCity}` : ''}
+          {/* Sol: Kullanıcı Profili (Modern Mini Kapsül - Parantezli Forum Mantığı Kaldırıldı) */}
+          <button
+            onClick={() => setShowUserModal(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CCFF00]/40 transition group cursor-pointer"
+            title="Profilini Düzenle"
+          >
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#CCFF00] to-emerald-400 text-black font-black flex items-center justify-center text-[10px] shrink-0">
+              {(currentNickname || 'A')[0].toUpperCase()}
+            </div>
+            <span className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition truncate max-w-[120px] sm:max-w-[200px]">
+              @{currentNickname || 'Anonim'}
             </span>
-            <button
-              onClick={() => setShowUserModal(true)}
-              className="text-[10px] sm:text-xs text-neutral-400 hover:text-white underline shrink-0 cursor-pointer"
-            >
-              (Değiştir)
-            </button>
-          </div>
+            {currentCity && <span className="text-[10px] text-neutral-400 font-mono hidden sm:inline">📍 {currentCity}</span>}
+            <span className="text-[9px] text-[#CCFF00]/70 font-mono group-hover:text-[#CCFF00] ml-0.5">
+              ✏️
+            </span>
+          </button>
 
           {/* Sağ: Canlı Sayacı + Günün Kapağı + Akış Kilit Butonu */}
           <div className="flex items-center gap-2 shrink-0">
@@ -2327,6 +2411,79 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                 </>
               )}
             </button>
+          </div>
+        </div>
+
+        {/* ========================================================
+            HIZLI DM & AVATAR ÇUBUĞU (Locket + Instagram Stories Tarzı)
+           ======================================================== */}
+        <div className="rounded-2xl p-3 bg-[#12151F]/60 border border-white/10 backdrop-blur-sm shadow-md">
+          <div className="flex items-center justify-between mb-2.5 px-1">
+            <span className="text-[11px] font-mono font-bold text-neutral-300 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+              <span>HIZLI FISILTI & DM</span>
+            </span>
+            <span className="text-[10px] font-mono text-neutral-400">
+              Dokun & Konuş 💬
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
+            {/* 1. GENEL MASA (Oda Akışı) */}
+            <button
+              onClick={() => {
+                setSelectedChatTarget(null);
+                setShowChatDrawer(true);
+              }}
+              className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
+            >
+              <div className="relative w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-[#CCFF00] via-emerald-400 to-[#CCFF00] group-hover:scale-105 transition-transform shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <div className="w-full h-full rounded-full bg-[#12151F] flex items-center justify-center text-lg">
+                  💬
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-neutral-300 group-hover:text-[#CCFF00] transition">
+                Genel Masa
+              </span>
+            </button>
+
+            {/* 2. DİĞER KATILIMCILAR (1-e-1 Hızlı Fısıltı) */}
+            {allRoomParticipants
+              .filter((p) => p !== currentNickname?.replace(/^@/, ''))
+              .map((nick) => {
+                const hasRecentMsg = recentChat?.sender === nick;
+                return (
+                  <button
+                    key={nick}
+                    onClick={() => openDirectChatWith(nick)}
+                    className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
+                  >
+                    <div className={`relative w-12 h-12 rounded-full p-[2px] transition-transform group-hover:scale-105 ${
+                      hasRecentMsg
+                        ? 'bg-gradient-to-tr from-[#FF2E93] via-violet-500 to-[#CCFF00] animate-pulse shadow-[0_0_20px_rgba(255,46,147,0.5)]'
+                        : 'bg-gradient-to-tr from-violet-600/70 to-pink-500/70 hover:from-violet-500 hover:to-[#CCFF00]'
+                    }`}>
+                      <div className="w-full h-full rounded-full bg-[#0D0F18] flex items-center justify-center font-black text-sm text-white">
+                        {nick.slice(0, 1).toUpperCase()}
+                      </div>
+                      {hasRecentMsg && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FF2E93] text-[9px] flex items-center justify-center text-white font-bold shadow-md animate-bounce">
+                          💬
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-medium text-neutral-300 group-hover:text-white transition truncate max-w-[64px]">
+                      @{nick}
+                    </span>
+                  </button>
+                );
+              })}
+
+            {allRoomParticipants.filter((p) => p !== currentNickname?.replace(/^@/, '')).length === 0 && (
+              <div className="text-[11px] text-neutral-400 font-mono py-2 pl-2">
+                Odaya başka biri katıldığında hızlı fısıltı çemberi burada parlayacak ✨
+              </div>
+            )}
           </div>
         </div>
 
@@ -2475,42 +2632,60 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             />
           )}
 
-          {/* BOŞ DURUM (EMPTY STATE - Hemen Görünür, Sıfır Lag) */}
+          {/* BOŞ DURUM (EMPTY STATE - Locket & Gen-Z Neon Polaroid Vizörü) */}
           {photos.length === 0 ? (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="group relative my-4 sm:my-8 py-8 sm:py-14 px-4 sm:px-6 rounded-3xl bg-[#12151F] border border-white/15 hover:border-[#CCFF00]/40 flex flex-col items-center justify-center text-center cursor-pointer transition-all overflow-hidden shadow-2xl"
+              className="group relative my-4 sm:my-8 py-10 sm:py-16 px-4 sm:px-8 rounded-3xl bg-[#12151F] border-2 border-[#CCFF00]/40 hover:border-[#CCFF00] flex flex-col items-center justify-center text-center cursor-pointer transition-all overflow-hidden shadow-[0_0_50px_rgba(204,255,0,0.15)] hover:shadow-[0_0_70px_rgba(204,255,0,0.3)] select-none"
             >
-              <div className="-rotate-6 w-36 sm:w-56 bg-white p-2.5 sm:p-3 pb-6 sm:pb-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/40 mb-4 sm:mb-6 transition-transform hover:rotate-0">
-                <div className="aspect-[4/3] rounded-xl bg-gradient-to-tr from-[#12151F] to-[#252A3D] flex flex-col items-center justify-center text-center p-3 sm:p-4 border border-neutral-800">
-                  <Globe className="w-8 h-8 sm:w-10 sm:h-10 text-[#CCFF00] mb-1 sm:mb-2 drop-shadow-[0_0_15px_rgba(204,255,0,0.6)]" />
-                  <span className="font-mono text-[9px] sm:text-[10px] text-neutral-400">ORTAK KAPSÜL #01</span>
+              {/* Arka plan hafif neon vizör ışıması */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(204,255,0,0.08)_0%,transparent_60%)] pointer-events-none" />
+
+              {/* Hafif yan duran Polaroid vizör kartı (-3 derece eğimli) */}
+              <div className="relative -rotate-3 group-hover:rotate-0 transition-transform duration-300 w-48 sm:w-60 bg-white p-3 pb-8 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9)] border border-white/50 mb-5">
+                {/* Vizör Ekranı */}
+                <div className="aspect-square rounded-xl bg-[#090A0F] border-2 border-dashed border-[#CCFF00]/60 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                  {/* Vizör Köşeleri */}
+                  <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-[#CCFF00]" />
+                  <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-[#CCFF00]" />
+                  <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-[#CCFF00]" />
+                  <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-[#CCFF00]" />
+
+                  {/* Yanıp Sönen Vizör Hedefi */}
+                  <div className="w-16 h-16 rounded-full border border-[#CCFF00]/30 flex items-center justify-center mb-2 animate-pulse">
+                    <Camera className="w-8 h-8 text-[#CCFF00] drop-shadow-[0_0_15px_rgba(204,255,0,0.8)]" />
+                  </div>
+                  <span className="font-mono text-[9px] text-[#CCFF00] tracking-wider uppercase font-black">
+                    [ VİZÖR HAZIR ]
+                  </span>
                 </div>
-                <p className="mt-2 sm:mt-3 text-center font-bold text-neutral-800 text-[11px] sm:text-xs">
-                  günün ilk anı ✨
+                <p className="mt-2.5 text-center font-black text-neutral-800 text-xs tracking-tight">
+                  ortamı başlat ⚡
                 </p>
               </div>
 
-              <div className="space-y-1.5 sm:space-y-2 max-w-sm">
-                <h3 className="text-xl sm:text-2xl font-black text-white flex items-center justify-center gap-2">
-                  İlk kareyi kim ateşliyor? 📸
+              {/* Başlık ve Açıklama */}
+              <div className="space-y-2 max-w-md relative z-10">
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2">
+                  <span>📸 İLK KAREYİ SEN FIRLAT</span>
                 </h3>
-                <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed px-2">
-                  Şu an neredeysen ilk fotoğrafını veya sesini buraya bırak. Linki arkadaşlarına atıp gününüzü tek bir kapsülde birleştirin!
+                <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed px-4">
+                  Kapsül henüz boş. Ortamı başlatmak için aşağıdaki <span className="text-[#CCFF00] font-bold">+</span>&apos;ya dokun veya buraya bas!
                 </p>
               </div>
 
-              <div className="mt-5 sm:mt-6 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+              {/* Hızlı Aksiyon Butonları */}
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3 relative z-10">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     fileInputRef.current?.click();
                   }}
-                  className="px-6 py-3 rounded-full bg-[#CCFF00] text-black font-black text-xs sm:text-sm flex items-center gap-2 shadow-[0_0_25px_rgba(204,255,0,0.4)] cursor-pointer"
+                  className="px-6 py-3 rounded-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm flex items-center gap-2 shadow-[0_0_30px_rgba(204,255,0,0.5)] cursor-pointer active:scale-95 transition-all"
                 >
                   <Camera className="w-4 h-4 fill-black" />
-                  <span>Fotoğraf Fırlat</span>
+                  <span>İlk Anıyı Fırlat 📸</span>
                 </button>
 
                 <button
@@ -2519,10 +2694,10 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                     e.stopPropagation();
                     setShowVoiceModal(true);
                   }}
-                  className="px-5 py-3 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm flex items-center gap-2 border border-white/15 cursor-pointer"
+                  className="px-5 py-3 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm flex items-center gap-2 border border-white/15 cursor-pointer active:scale-95 transition-all"
                 >
                   <Mic className="w-4 h-4 text-[#FF2E93]" />
-                  <span>Ses Kaydet 🎙️</span>
+                  <span>Ses Bırak 🎙️</span>
                 </button>
               </div>
             </div>
@@ -2614,119 +2789,110 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
 </main>
 
       {/* ========================================================
-          ALT YÜZEN DOCK (Fotoğraf Bas, Ses Kaydet, ZIP İndir)
+          YÜZEN ALT CAM DOCK (Locket + Modern Mobile Floating Island)
          ======================================================== */}
       <div 
-        className="fixed inset-x-0 z-40 px-2 sm:px-4 pointer-events-none"
+        className="fixed inset-x-0 z-40 px-3 sm:px-4 pointer-events-none"
         style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
       >
-        <div
-          className="max-w-xl mx-auto pointer-events-auto bg-[#12151F] border border-white/20 rounded-full px-2.5 sm:px-3 py-2 sm:py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar"
-        >
-          {/* Sol: İstatistikler */}
-          <div className="pl-1 hidden sm:block shrink-0">
-            <p className="text-[11px] sm:text-xs font-black text-white">
-              {photos.length} Anı
-            </p>
-            <p className="text-[9px] sm:text-[10px] font-mono text-neutral-400">
-              KAPSÜL
-            </p>
-          </div>
+        <div className="max-w-md mx-auto pointer-events-auto bg-[#12151F]/95 backdrop-blur-xl border border-white/20 rounded-full p-2 px-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-2">
+          {/* SOL: Son DM Balonu / Hapı */}
+          <button
+            onClick={() => {
+              if (recentChat?.sender && recentChat.sender !== currentNickname) {
+                openDirectChatWith(recentChat.sender);
+              } else {
+                setSelectedChatTarget(null);
+                setShowChatDrawer(true);
+              }
+            }}
+            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/50 transition cursor-pointer max-w-[130px] sm:max-w-[160px] shrink min-w-0"
+            title="Son Sohbete Git"
+          >
+            <div className="relative shrink-0">
+              <span className="w-6 h-6 rounded-full bg-violet-600/40 border border-violet-400 flex items-center justify-center text-xs">
+                💬
+              </span>
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
+            </div>
+            <div className="flex flex-col text-left truncate min-w-0">
+              <span className="text-[10px] font-bold text-violet-300 truncate">
+                {recentChat ? `@${recentChat.sender}` : 'Sohbet'}
+              </span>
+              <span className="text-[9px] text-neutral-400 truncate">
+                {recentChat ? recentChat.text : 'Fısılda...'}
+              </span>
+            </div>
+          </button>
 
-          {/* Orta Butonlar: Tinder Ayıkla + Ses Kaydet + Dev Fotoğraf Bas */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-center sm:justify-end">
-            {/* VIBE CHECK TETİKLEME BUTONU */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowChatDrawer(true)}
-              title="Sohbet & DM Çekmecesi"
-              className="flex items-center gap-1 px-3 py-2.5 sm:px-3.5 sm:py-2.5 rounded-full bg-gradient-to-r from-violet-600/30 to-pink-500/30 hover:from-violet-600/50 hover:to-pink-500/50 border border-violet-500/50 text-violet-200 hover:text-white font-black text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0"
-            >
-              <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
-              <span className="inline">Chat</span>
-            </motion.button>
+          {/* ORTA: DEV NEON YEŞİL + FOTOĞRAF BAS BUTONU */}
+          <motion.button
+            whileHover={{ scale: storageStats.isExceeded ? 1 : 1.05 }}
+            whileTap={{ scale: storageStats.isExceeded ? 1 : 0.95 }}
+            onClick={() => {
+              if (storageStats.isExceeded) {
+                handleQuotaExceeded('Kasa şu an dolu, fotoğraf yüklenemiyor 🛑');
+                return;
+              }
+              fileInputRef.current?.click();
+            }}
+            disabled={storageStats.isExceeded}
+            className={`flex items-center justify-center gap-1.5 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-black text-xs sm:text-sm transition-all cursor-pointer shrink-0 shadow-lg ${
+              storageStats.isExceeded
+                ? 'bg-[#FF2E93]/30 text-[#FF2E93] border border-[#FF2E93]/50 cursor-not-allowed'
+                : 'bg-[#CCFF00] text-black shadow-[0_0_25px_rgba(204,255,0,0.5)] hover:shadow-[0_0_35px_rgba(204,255,0,0.7)]'
+            }`}
+          >
+            {storageStats.isExceeded ? (
+              <>
+                <Lock className="w-4 h-4" />
+                <span>Dolu</span>
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+                <span className="tracking-wide">+ FOTO</span>
+              </>
+            )}
+          </motion.button>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleTriggerVibeCheck}
-              disabled={isTriggeringVibe}
-              title="🚨 Anlık Vibe Check Patlat (3 Dk Rulet)"
-              className="flex items-center gap-1 px-3 py-2.5 sm:px-3.5 sm:py-2.5 rounded-full bg-gradient-to-r from-red-600/30 to-amber-500/30 hover:from-red-600/50 hover:to-amber-500/50 border border-red-500/50 text-red-300 hover:text-white font-black text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0"
-            >
-              <Zap className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
-              <span className="inline">Vibe</span>
-            </motion.button>
-
-            {/* TINDER SWIPE MODU BUTONU */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowSwipeModal(true)}
-              disabled={photos.length === 0}
-              title="Tinder Modunda Ayıkla (Swipe Kuratörü)"
-              className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-tr from-orange-500/25 to-pink-500/25 hover:from-orange-500/40 hover:to-pink-500/40 border border-orange-500/40 text-orange-400 flex items-center justify-center transition cursor-pointer shadow-sm disabled:opacity-30 shrink-0"
-            >
-              <Flame className="w-4 h-4 sm:w-5 sm:h-5 fill-orange-400" />
-            </motion.button>
-
-            {/* 10S REELS / VIDEO ÖZETİ BUTONU */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowReelsModal(true)}
-              disabled={photos.length === 0}
-              title="🎬 10s Beat-Sync TikTok / Reels Özeti Yap"
-              className="flex items-center gap-1 px-3 py-2.5 sm:px-3.5 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-500/25 to-[#CCFF00]/25 hover:from-emerald-500/40 hover:to-[#CCFF00]/40 border border-[#CCFF00]/40 text-[#CCFF00] font-black text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0 disabled:opacity-30"
-            >
-              <Film className="w-4 h-4 text-[#CCFF00]" />
-              <span className="hidden sm:inline">10s Klip</span>
-              <span className="sm:hidden">Klip</span>
-            </motion.button>
-
+          {/* SAĞ: HIZLI AKSİYONLAR (Ses Kaydet & Masa Menüsü) */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* SES KAYDET BUTONU */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowVoiceModal(true)}
-              title="10 Saniyelik Sesli Anı Bırak"
-              className="flex items-center gap-1.5 px-4 py-2.5 sm:px-4 sm:py-2.5 rounded-full bg-[#7928CA]/30 hover:bg-[#7928CA]/50 border border-[#7928CA]/50 text-violet-300 font-bold text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0"
+              title="Ses Kaydet"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#7928CA]/25 hover:bg-[#7928CA]/40 border border-[#7928CA]/40 text-[#FF2E93] flex items-center justify-center transition cursor-pointer shadow-sm"
             >
-              <Mic className="w-4 h-4 sm:w-4 sm:h-4 text-[#FF2E93]" />
-              <span className="inline">Ses</span>
+              <Mic className="w-4 h-4 text-[#FF2E93]" />
             </motion.button>
 
-            {/* FOTOĞRAF BAS BUTONU */}
+            {/* MASA CHAT TETİKLEYİCİ */}
             <motion.button
-              whileHover={{ scale: storageStats.isExceeded ? 1 : 1.05 }}
-              whileTap={{ scale: storageStats.isExceeded ? 1 : 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => {
-                if (storageStats.isExceeded) {
-                  handleQuotaExceeded('Kasa şu an dolu, fotoğraf yüklenemiyor 🛑');
-                  return;
-                }
-                fileInputRef.current?.click();
+                setSelectedChatTarget(null);
+                setShowChatDrawer(true);
               }}
-              disabled={storageStats.isExceeded}
-              title="Fotoğraf Fırlat"
-              className={`flex items-center gap-1.5 px-4 py-2.5 sm:px-4 sm:py-2.5 rounded-full font-black text-xs sm:text-sm transition-all cursor-pointer shrink-0 ${
-                storageStats.isExceeded
-                  ? 'bg-[#FF2E93]/30 text-[#FF2E93] border border-[#FF2E93]/50 cursor-not-allowed shadow-none'
-                : 'bg-[#CCFF00] text-black shadow-[0_0_20px_rgba(204,255,0,0.4)] hover:shadow-[0_0_25px_rgba(204,255,0,0.6)]'
-              }`}
+              title="👥 Genel Masa Sohbeti"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-neutral-300 flex items-center justify-center transition cursor-pointer shadow-sm"
             >
-              {storageStats.isExceeded ? (
-                <>
-                  <Lock className="w-4 h-4" />
-                  <span className="inline">Dolu</span>
-                </>
-              ) : (
-                <>
-                  <Camera className="w-4 h-4 sm:w-4 sm:h-4 stroke-[3]" />
-                  <span className="inline">Foto</span>
-                </>
-              )}
+              <Users className="w-4 h-4 text-[#CCFF00]" />
+            </motion.button>
+
+            {/* VİBE TETİKLEYİCİ */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleTriggerVibeCheck}
+              disabled={isTriggeringVibe}
+              title="🚨 Vibe Check Patlat"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-600/20 hover:bg-red-600/35 border border-red-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shadow-sm"
+            >
+              <Zap className="w-4 h-4 fill-amber-400 animate-pulse" />
             </motion.button>
           </div>
         </div>
@@ -3719,7 +3885,10 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
       {/* SOHBET & DM ÇEKMECESİ */}
       <ChatDrawer
         isOpen={showChatDrawer}
-        onClose={() => setShowChatDrawer(false)}
+        onClose={() => {
+          setShowChatDrawer(false);
+          setSelectedChatTarget(null);
+        }}
         roomId={room?.id || params.short_id}
         currentUserNick={currentNickname}
         participants={allRoomParticipants}
@@ -3728,6 +3897,8 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         getMediaUrl={getMediaUrl}
         replyPhoto={chatReplyPhoto}
         onClearReplyPhoto={() => setChatReplyPhoto(null)}
+        initialDirectTarget={selectedChatTarget}
+        onDirectTargetHandled={() => setSelectedChatTarget(null)}
       />
 
       {/* GÜNÜN FATURASI (RECEIPTIFY TARZI FİŞ MODALI) */}

@@ -43,6 +43,8 @@ interface ChatDrawerProps {
   getMediaUrl: (key: string) => string;
   replyPhoto: any | null;
   onClearReplyPhoto: () => void;
+  initialDirectTarget?: string | null;
+  onDirectTargetHandled?: () => void;
 }
 
 type TabMode = 'general' | 'direct' | 'groups';
@@ -59,11 +61,24 @@ export default function ChatDrawer({
   getMediaUrl,
   replyPhoto,
   onClearReplyPhoto,
+  initialDirectTarget,
+  onDirectTargetHandled,
 }: ChatDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('general');
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
+
+  // Mobil Scroll Kilidi: Çekmece açıkken arka plan sayfasının kaymasını engelle
+  useEffect(() => {
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isOpen]);
   
   // Mesajlaşma State'leri
   const [inputText, setInputText] = useState('');
@@ -547,6 +562,14 @@ export default function ChatDrawer({
     } catch {}
   };
 
+  // Dışarıdan doğrudan 1-e-1 hedef seçilerek açıldıysa otomatik kanala geç
+  useEffect(() => {
+    if (isOpen && initialDirectTarget) {
+      handleStartDirectChat(initialDirectTarget.replace(/^@/, ''));
+      onDirectTargetHandled?.();
+    }
+  }, [isOpen, initialDirectTarget]);
+
   // Yeni Alt Grup Açma
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -806,8 +829,8 @@ export default function ChatDrawer({
               </div>
             )}
 
-            {/* MESAJ AKIŞ LİSTESİ */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
+            {/* MESAJ AKIŞ LİSTESİ (Arka plan kaymasını engelleyen overscroll kilidi) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar overscroll-contain touch-pan-y">
               {activeMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-500">
                   <span className="text-4xl mb-2">💬</span>
