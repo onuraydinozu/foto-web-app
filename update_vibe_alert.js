@@ -1,4 +1,8 @@
-'use client';
+const fs = require('fs');
+const file = 'components/VibeCheckAlert.tsx';
+let content = fs.readFileSync(file, 'utf8');
+
+const updatedAlertCode = `'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -101,12 +105,12 @@ export default function VibeCheckAlert({
       if (typeof document !== 'undefined') {
         const m = Math.floor(secs / 60);
         const s = secs % 60;
-        const timeBadge = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        const timeBadge = \`\${String(m).padStart(2, '0')}:\${String(s).padStart(2, '0')}\`;
 
         if (secs > 0) {
           titleToggle = !titleToggle;
           document.title = titleToggle
-            ? `🚨 (${timeBadge}) VİBE CHECK! 📸`
+            ? \`🚨 (\${timeBadge}) VİBE CHECK! 📸\`
             : '💥 FOTOĞRAFI HEMEN BAS!';
         } else {
           document.title = originalTitleRef.current || 'SnapRoom';
@@ -130,12 +134,11 @@ export default function VibeCheckAlert({
   const isExpired = secondsLeft <= 0;
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
-  const formattedTime = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  const formattedTime = \`\${String(mins).padStart(2, '0')}:\${String(secs).padStart(2, '0')}\`;
 
   // WhatsApp'ı doğrudan aç ve panoya da kopyala (Çift Katmanlı Güvence)
   const handleLaunchWhatsApp = () => {
-    const text = `🚨 Masada VİBE CHECK patladı! Tam şu an ne yapıyorsun? Son 3 dakikan var, hemen bas:
-${shareUrl}`;
+    const text = \`🚨 Masada VİBE CHECK patladı! Tam şu an ne yapıyorsun? Son 3 dakikan var, hemen bas:\n\${shareUrl}\`;
     
     try {
       navigator.clipboard.writeText(text);
@@ -144,7 +147,7 @@ ${shareUrl}`;
     } catch {}
 
     // Doğrudan WhatsApp Paylaşım API'sini tetikle
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    const waUrl = \`https://api.whatsapp.com/send?text=\${encodeURIComponent(text)}\`;
     window.open(waUrl, '_blank');
   };
 
@@ -238,3 +241,7 @@ ${shareUrl}`;
     </div>
   );
 }
+`;
+
+fs.writeFileSync(file, updatedAlertCode);
+console.log('Successfully upgraded VibeCheckAlert with hybrid WhatsApp trigger, vibration, and dynamic title!');
