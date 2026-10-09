@@ -2488,6 +2488,15 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 
           {/* DÜĞME IZGARASI (Mobilde alt alta 2-3 kolon ızgara, masaüstünde esnek şerit) */}
           <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-2 py-1">
+            {/* 0. NEREYE AKSAK? (MASA GURMESİ & RADAR) */}
+            <button
+              onClick={() => setShowPlaceRadar(true)}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl border bg-[#CCFF00]/15 hover:bg-[#CCFF00]/25 border-[#CCFF00]/50 text-[#CCFF00] font-black text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-[0_0_15px_rgba(204,255,0,0.15)] active:scale-95"
+              title="Nereye Aksak? (Masa Gurmesi AI & Radar)"
+            >
+              <MapPin className="w-4 h-4 text-[#CCFF00]" />
+              <span className="whitespace-nowrap">📍 Nereye Aksak?</span>
+            </button>
 
             {/* 1. MÜZİK (YOUTUBE ŞARKI ARA & OYNAT) */}
             <button
