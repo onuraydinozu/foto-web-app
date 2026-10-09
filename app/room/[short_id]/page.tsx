@@ -2112,10 +2112,10 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         }}
       >
         <header
-          className="rounded-2xl bg-[#12151F]/90 backdrop-blur-xl border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-between gap-2"
+          className="rounded-2xl bg-[#12151F]/90 backdrop-blur-xl border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-between gap-1.5 sm:gap-2 overflow-hidden"
         >
           {/* SOL: Çıkış ve Oda Başlığı (Kırpılma Yok, Ferah) */}
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <button
               onClick={() => router.push('/')}
               title="Ana Sayfaya ve Kapsüllerime Dön"
@@ -2127,14 +2127,14 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 min-w-0">
               <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse shrink-0" />
-              <span className="font-black text-xs sm:text-sm tracking-wide text-white truncate">
+              <span className="font-black text-xs sm:text-sm tracking-wide text-white truncate max-w-[95px] xs:max-w-[150px] sm:max-w-none">
                 {capsuleName}
               </span>
             </div>
           </div>
 
           {/* SAĞ: Geri Sayım Süresi & Paylaş */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <CountdownTimer
               createdAt={room?.created_at}
               uploadLockedAt={room?.upload_locked_at}
@@ -2150,10 +2150,10 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                 navigator.clipboard.writeText(text);
                 alert(`Davet linki ve Kapsül Kodu (${room.short_id}) kopyalandı! WhatsApp grubuna atarak arkadaşlarını topla. ⚡`);
               }}
-              className="px-2.5 sm:px-3 py-1.5 rounded-full bg-[#CCFF00]/15 hover:bg-[#CCFF00]/25 border border-[#CCFF00]/40 text-[#CCFF00] font-bold text-xs flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-sm active:scale-95"
+              className="px-2.5 sm:px-3 py-1.5 rounded-full bg-[#CCFF00]/15 hover:bg-[#CCFF00]/25 border border-[#CCFF00]/40 text-[#CCFF00] font-bold text-xs flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm active:scale-95"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>Paylaş</span>
+              <span className="hidden xs:inline">Paylaş</span>
             </motion.button>
           </div>
         </header>
@@ -2229,7 +2229,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         {/* ========================================================
             2. KAT: KOMPAKT PROFİL & DURUM ŞERİDİ
            ======================================================== */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-[#12151F]/60 backdrop-blur-sm border border-white/10 text-xs shadow-lg">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-[#12151F]/60 backdrop-blur-sm border border-white/10 text-xs shadow-lg overflow-hidden">
           {/* Sol: Kullanıcı Profili */}
           <button
             onClick={() => setShowUserModal(true)}
@@ -2774,13 +2774,13 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
 </main>
 
       {/* ========================================================
-          YÜZEN ALT CAM DOCK (Locket + Modern Mobile Floating Island)
+          YÜZEN ALT CAM DOCK (Locket + Modern Mobile Floating Island - SIFIR TAŞMA)
          ======================================================== */}
       <div 
-        className="fixed inset-x-0 z-40 px-3 sm:px-4 pointer-events-none"
-        style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
+        className="fixed inset-x-0 z-40 px-2.5 sm:px-4 pointer-events-none"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
       >
-        <div className="max-w-md mx-auto pointer-events-auto bg-[#12151F]/95 backdrop-blur-xl border border-white/20 rounded-full p-2 px-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-2">
+        <div className="w-full max-w-[390px] mx-auto pointer-events-auto bg-[#12151F]/95 backdrop-blur-xl border border-white/20 rounded-full p-1.5 px-2.5 sm:p-2 sm:px-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-1.5 sm:gap-2 overflow-hidden">
           {/* SOL: Son DM Balonu / Hapı */}
           <button
             onClick={() => {
@@ -2791,20 +2791,22 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                 setShowChatDrawer(true);
               }
             }}
-            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/50 transition cursor-pointer max-w-[130px] sm:max-w-[160px] shrink min-w-0"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/50 transition cursor-pointer flex-1 min-w-0 max-w-[105px] xs:max-w-[125px] sm:max-w-[150px]"
             title="Son Sohbete Git"
           >
             <div className="relative shrink-0">
               <span className="w-6 h-6 rounded-full bg-violet-600/40 border border-violet-400 flex items-center justify-center text-xs">
                 💬
               </span>
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
+              {recentChat && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
+              )}
             </div>
             <div className="flex flex-col text-left truncate min-w-0">
-              <span className="text-[10px] font-bold text-violet-300 truncate">
+              <span className="text-[10px] font-bold text-violet-300 truncate leading-tight">
                 {recentChat ? `@${recentChat.sender}` : 'Sohbet'}
               </span>
-              <span className="text-[9px] text-neutral-400 truncate">
+              <span className="text-[8.5px] text-neutral-400 truncate leading-tight">
                 {recentChat ? recentChat.text : 'Fısılda...'}
               </span>
             </div>
@@ -2830,7 +2832,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
           >
             {storageStats.isExceeded ? (
               <>
-                <Lock className="w-4 h-4" />
+                <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Dolu</span>
               </>
             ) : (
@@ -2841,31 +2843,17 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             )}
           </motion.button>
 
-          {/* SAĞ: HIZLI AKSİYONLAR (Ses Kaydet & Masa Menüsü) */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* SAĞ: HIZLI AKSİYONLAR (Ses Kaydet & Vibe) */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* SES KAYDET BUTONU */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowVoiceModal(true)}
               title="Ses Kaydet"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#7928CA]/25 hover:bg-[#7928CA]/40 border border-[#7928CA]/40 text-[#FF2E93] flex items-center justify-center transition cursor-pointer shadow-sm"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#7928CA]/25 hover:bg-[#7928CA]/40 border border-[#7928CA]/40 text-[#FF2E93] flex items-center justify-center transition cursor-pointer shadow-sm active:scale-95"
             >
-              <Mic className="w-4 h-4 text-[#FF2E93]" />
-            </motion.button>
-
-            {/* MASA CHAT TETİKLEYİCİ */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setSelectedChatTarget(null);
-                setShowChatDrawer(true);
-              }}
-              title="👥 Genel Masa Sohbeti"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-neutral-300 flex items-center justify-center transition cursor-pointer shadow-sm"
-            >
-              <Users className="w-4 h-4 text-[#CCFF00]" />
+              <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF2E93]" />
             </motion.button>
 
             {/* VİBE TETİKLEYİCİ */}
@@ -2875,9 +2863,9 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
               onClick={handleTriggerVibeCheck}
               disabled={isTriggeringVibe}
               title="🚨 Vibe Check Patlat"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-600/20 hover:bg-red-600/35 border border-red-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shadow-sm"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-600/20 hover:bg-red-600/35 border border-red-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shadow-sm active:scale-95"
             >
-              <Zap className="w-4 h-4 fill-amber-400 animate-pulse" />
+              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-400 animate-pulse" />
             </motion.button>
           </div>
         </div>
