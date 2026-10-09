@@ -1677,7 +1677,7 @@ export default function RoomPage() {
 
       {/* OTOMATİK GÜNÜN KAPAĞI AMBİYANS IŞIĞI */}
       {coverPhoto && (
-        <div className="absolute top-0 inset-x-0 h-[480px] overflow-hidden pointer-events-none z-0 opacity-25">
+        <div className="hidden md:block absolute top-0 inset-x-0 h-[480px] overflow-hidden pointer-events-none z-0 opacity-25">
           <img
             src={getMediaUrl(coverPhoto.r2_file_key)}
             alt="Günün Kapağı Ambiyans"
@@ -1734,7 +1734,7 @@ export default function RoomPage() {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="rounded-[1.5rem] bg-[#12151F]/90 backdrop-blur-sm border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex flex-col gap-2.5"
+          className="rounded-[1.5rem] bg-[#12151F] md:bg-[#12151F]/90 md:backdrop-blur-sm border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex flex-col gap-2.5"
         >
           {/* ÜST SATIR: Çıkış, Başlık, Aksiyonlar */}
           <div className="flex items-center justify-between gap-2 w-full">
@@ -2437,7 +2437,7 @@ export default function RoomPage() {
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="max-w-md mx-auto pointer-events-auto bg-[#12151F]/95 backdrop-blur-sm border border-white/20 rounded-full px-3 py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-2"
+          className="max-w-md mx-auto pointer-events-auto bg-[#12151F] md:bg-[#12151F]/95 md:backdrop-blur-sm border border-white/20 rounded-full px-3 py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-2"
         >
           {/* Sol: İstatistikler */}
           <div className="pl-1 hidden sm:block shrink-0">
