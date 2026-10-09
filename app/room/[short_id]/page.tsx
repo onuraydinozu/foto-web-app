@@ -13,13 +13,14 @@ import {
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
   Music, Check, UploadCloud, Flame, Camera, Users, Trophy,
   Trash2, CheckSquare, Square, FileDown, Layers,
-  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap
+  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare
 } from 'lucide-react';
 import exifr from 'exifr';
 import AuthModal from '@/components/AuthModal';
 import PollsCard from '@/components/PollsCard';
 import YoutubePlayer from '@/components/YoutubePlayer';
 import SwipeCuratorModal from '@/components/SwipeCuratorModal';
+import ChatDrawer from '@/components/ChatDrawer';
 import VibeCheckAlert, { playVibeCheckAudio } from '@/components/VibeCheckAlert';
 import VibeCheckShowcase from '@/components/VibeCheckShowcase';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
@@ -260,6 +261,9 @@ export default function RoomPage() {
 
   // Çoklu Seçim Modu
   const [isSelectMode, setIsSelectMode] = useState(false);
+  // Sohbet & DM Çekmecesi Durumları
+  const [showChatDrawer, setShowChatDrawer] = useState(false);
+  const [chatReplyPhoto, setChatReplyPhoto] = useState<any | null>(null);
 
   // Vibe Check (Senkronize Fotoğraf Ruleti) Durumları
   const [activeVibeCheck, setActiveVibeCheck] = useState<any>(null);
@@ -311,6 +315,19 @@ export default function RoomPage() {
   const storyItems = useMemo(() => {
     return photos.filter((p) => !p.original_name?.startsWith('Sesli Anı'));
   }, [photos]);
+
+  
+  // Odadaki Tüm Katılımcıların Listesi (Canlı + Fotoğraf Atanlar)
+  const allRoomParticipants = useMemo(() => {
+    const set = new Set<string>();
+    if (currentNickname) set.add(currentNickname.replace(/^@/, ''));
+    liveViewers.forEach((v) => set.add(v.replace(/^@/, '')));
+    photos.forEach((p) => {
+      const parsed = parsePhotoUploader(p.uploaded_by);
+      if (parsed.nick) set.add(parsed.nick.replace(/^@/, ''));
+    });
+    return Array.from(set);
+  }, [currentNickname, liveViewers, photos]);
 
   const currentStoryPhoto = storyIndex !== null ? storyItems[storyIndex] : null;
 
@@ -1933,6 +1950,15 @@ export default function RoomPage() {
               </button>
 
               <button
+                onClick={() => setShowChatDrawer(true)}
+                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-gradient-to-r from-violet-600/30 to-pink-500/30 hover:from-violet-600/50 hover:to-pink-500/50 border border-violet-500/50 text-violet-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Sohbet & DM İstasyonu"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-[#CCFF00]" />
+                <span className="hidden sm:inline text-xs font-bold">Sohbet</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setShowRecapModal(true);
                   confetti({
@@ -2501,6 +2527,18 @@ export default function RoomPage() {
                       {!isDisposableLocked && !isSelectMode && (
                         <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setChatReplyPhoto(photo);
+                              setShowChatDrawer(true);
+                            }}
+                            title="Sohbette Alıntıla"
+                            className="p-1.5 rounded-full bg-black/70 hover:bg-black text-pink-400 hover:text-pink-300 backdrop-blur-md transition cursor-pointer"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
                             onClick={(e) => downloadSingleFile(photo.r2_file_key, photo.original_name, e)}
                             title="Orijinal formatında indir"
                             className="p-1.5 rounded-full bg-black/70 hover:bg-black text-[#CCFF00] backdrop-blur-md transition cursor-pointer"
@@ -2639,6 +2677,17 @@ export default function RoomPage() {
           {/* Orta Butonlar: Tinder Ayıkla + Ses Kaydet + Dev Fotoğraf Bas */}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-center sm:justify-end">
             {/* VIBE CHECK TETİKLEME BUTONU */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowChatDrawer(true)}
+              title="Sohbet & DM Çekmecesi"
+              className="flex items-center gap-1 px-3 py-2.5 sm:px-3.5 sm:py-2.5 rounded-full bg-gradient-to-r from-violet-600/30 to-pink-500/30 hover:from-violet-600/50 hover:to-pink-500/50 border border-violet-500/50 text-violet-200 hover:text-white font-black text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0"
+            >
+              <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
+              <span className="inline">Chat</span>
+            </motion.button>
+
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -3628,6 +3677,20 @@ export default function RoomPage() {
         onClose={() => setShowSwipeModal(false)}
         photos={photos}
         roomShortId={room?.short_id || params.short_id}
+      />
+
+      {/* SOHBET & DM ÇEKMECESİ */}
+      <ChatDrawer
+        isOpen={showChatDrawer}
+        onClose={() => setShowChatDrawer(false)}
+        roomId={room?.id || params.short_id}
+        currentUserNick={currentNickname}
+        participants={allRoomParticipants}
+        roomPhotos={photos}
+        channel={channelRef.current}
+        getMediaUrl={getMediaUrl}
+        replyPhoto={chatReplyPhoto}
+        onClearReplyPhoto={() => setChatReplyPhoto(null)}
       />
     </div>
   );
