@@ -199,9 +199,33 @@ export default function SelfieReactionModal({
   };
 
   // Dosyadan fotoğraf seçme yedeği (Kamera izni engelliyse)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // 1. createImageBitmap ile donanımsal EXIF düzeltmesi
+    if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+      try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        const canvas = document.createElement('canvas');
+        const size = 150;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const minDim = Math.min(bitmap.width, bitmap.height);
+          const startX = (bitmap.width - minDim) / 2;
+          const startY = (bitmap.height - minDim) / 2;
+          ctx.drawImage(bitmap, startX, startY, minDim, minDim, 0, 0, size, size);
+          bitmap.close();
+          const dataUrl = canvas.toDataURL('image/webp', 0.82);
+          setCapturedImage(dataUrl);
+          setCameraError(null);
+          return;
+        }
+        bitmap.close();
+      } catch (err) {}
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -219,7 +243,7 @@ export default function SelfieReactionModal({
         const startY = (img.height - minDim) / 2;
 
         ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
-        const dataUrl = canvas.toDataURL('image/webp', 0.78);
+        const dataUrl = canvas.toDataURL('image/webp', 0.82);
         setCapturedImage(dataUrl);
         setCameraError(null);
       };

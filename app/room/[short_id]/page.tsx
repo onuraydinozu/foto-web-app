@@ -989,6 +989,33 @@ export default function RoomPage() {
 
         if (!uploadRes.ok) continue;
 
+        // Offline senkronizasyonda da hafif WebP Thumbnail üret
+        if (item.fileType?.startsWith('image/')) {
+          try {
+            const thumbBlob = await createThumbnailBlob(item.fileBlob, 400);
+            if (thumbBlob) {
+              const thumbKey = `thumbs/${fileKey}.webp`;
+              const thumbRes = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  filename: thumbKey,
+                  contentType: 'image/webp',
+                  fileSize: thumbBlob.size,
+                }),
+              });
+              if (thumbRes.ok) {
+                const { url: thumbPutUrl } = await thumbRes.json();
+                await fetch(thumbPutUrl, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'image/webp' },
+                  body: thumbBlob,
+                });
+              }
+            }
+          } catch (tErr) {}
+        }
+
         const finalUploader = item.deviceModel 
           ? `${item.uploaderTag}__DEV:${item.deviceModel}` 
           : item.uploaderTag;
@@ -1056,17 +1083,18 @@ export default function RoomPage() {
 
 // ==========================================
 // CLIENT-SIDE THUMBNAIL MOTORU (<Canvas> 400px WebP, ~35 KB)
+// EXIF OTO-DÖNDÜRME DESTEKLİ (Telefondan çekilen dikey/yatay kareleri asla ters çevirmez)
 // ==========================================
-async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | null> {
+async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blob | null> {
   if (!file.type.startsWith('image/')) return null;
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const canvas = document.createElement('canvas');
-      let w = img.width;
-      let h = img.height;
+
+  // 1. ÖNCELİKLİ YÖNTEM: createImageBitmap({ imageOrientation: 'from-image' })
+  // Modern mobil tarayıcılarda (iOS Safari 15+, Chrome) donanım hızlandırmalı ve EXIF'e tam duyarlı
+  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      let w = bitmap.width;
+      let h = bitmap.height;
       if (w > h) {
         if (w > maxDim) {
           h = Math.round((h * maxDim) / w);
@@ -1078,12 +1106,102 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
           h = maxDim;
         }
       }
+
+      const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(bitmap, 0, 0, w, h);
+        bitmap.close();
+        return new Promise((resolve) => {
+          canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.82);
+        });
+      }
+      bitmap.close();
+    } catch (e) {
+      // Desteklenmeyen veya hata veren tarayıcılarda güvenli fallback'e devam et
+    }
+  }
+
+  // 2. GÜVENLİ FALLBACK: exifr ile EXIF tag tespiti + Canvas Transform Matrisi
+  return new Promise(async (resolve) => {
+    let orientation = 1;
+    try {
+      const exifrMod = await import('exifr');
+      orientation = (await exifrMod.default.orientation(file)) || 1;
+    } catch {}
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const isRotated90 = [5, 6, 7, 8].includes(orientation);
+      const naturalW = img.naturalWidth || img.width;
+      const naturalH = img.naturalHeight || img.height;
+
+      // EXIF yönelimine göre nihai dikey/yatay boyutları hesapla
+      const logicalW = isRotated90 ? naturalH : naturalW;
+      const logicalH = isRotated90 ? naturalW : naturalH;
+
+      let displayW = logicalW;
+      let displayH = logicalH;
+
+      if (displayW > displayH) {
+        if (displayW > maxDim) {
+          displayH = Math.round((displayH * maxDim) / displayW);
+          displayW = maxDim;
+        }
+      } else {
+        if (displayH > maxDim) {
+          displayW = Math.round((displayW * maxDim) / displayH);
+          displayH = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = displayW;
+      canvas.height = displayH;
+      const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(null);
-      ctx.drawImage(img, 0, 0, w, h);
-      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.78);
+
+      const drawW = isRotated90 ? displayH : displayW;
+      const drawH = isRotated90 ? displayW : displayH;
+
+      switch (orientation) {
+        case 2:
+          ctx.translate(displayW, 0);
+          ctx.scale(-1, 1);
+          break;
+        case 3:
+          ctx.translate(displayW, displayH);
+          ctx.rotate(Math.PI);
+          break;
+        case 4:
+          ctx.translate(0, displayH);
+          ctx.scale(1, -1);
+          break;
+        case 5:
+          ctx.rotate(0.5 * Math.PI);
+          ctx.scale(1, -1);
+          break;
+        case 6:
+          ctx.translate(displayW, 0);
+          ctx.rotate(0.5 * Math.PI);
+          break;
+        case 7:
+          ctx.translate(displayW, displayH);
+          ctx.rotate(0.5 * Math.PI);
+          ctx.scale(-1, 1);
+          break;
+        case 8:
+          ctx.translate(0, displayH);
+          ctx.rotate(-0.5 * Math.PI);
+          break;
+      }
+
+      ctx.drawImage(img, 0, 0, drawW, drawH);
+      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.82);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -2043,6 +2161,16 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         onChange={(e) => {
           if (e.target.files) processFiles(e.target.files);
         }}
+      />
+
+      {/* Vibe Check Kamerası (Doğrudan Cihaz Kamerasını Tetikler) */}
+      <input
+        ref={vibeCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleVibePhotoSelected}
       />
 
       {/* AMBİYANS IŞIKLARI - SIFIR GPU & BELLEK YÜKÜ (CSS Radial Gradients) */}

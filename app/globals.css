@@ -20,6 +20,10 @@
   box-sizing: border-box;
 }
 
+img, video {
+  image-orientation: from-image;
+}
+
 html, body {
   margin: 0;
   padding: 0;
