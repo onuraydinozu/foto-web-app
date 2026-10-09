@@ -114,14 +114,15 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
         })
       });
 
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setPlaces(data.data || []);
         if ((!data.data || data.data.length === 0) && data.message) {
           setErrorMessage(data.message);
         }
       } else {
-        setErrorMessage(data.error || 'Mekanlar taranırken bir hata oluştu.');
+        setPlaces([]);
+        setErrorMessage(data.error || `Sunucu hatası (${res.status})`);
       }
     } catch (e: any) {
       console.error(e);
@@ -444,8 +445,8 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                       ))}
                     </div>
                   ) : errorMessage ? (
-                    <div className="text-center py-8 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex flex-col items-center gap-2">
-                      <AlertCircle className="w-5 h-5" />
+                    <div className="text-center py-6 px-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex flex-col items-center gap-2 font-medium">
+                      <AlertCircle className="w-5 h-5 text-red-400" />
                       <span>{errorMessage}</span>
                     </div>
                   ) : places.length === 0 ? (
