@@ -13,7 +13,7 @@ import {
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
   Music, Check, UploadCloud, Flame, Camera, Users, Trophy,
   Trash2, CheckSquare, Square, FileDown, Layers,
-  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare, Receipt, Film
+  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare, Receipt, Film, RefreshCw
 } from 'lucide-react';
 import exifr from 'exifr';
 import AuthModal from '@/components/AuthModal';
@@ -28,6 +28,7 @@ import VibeCheckShowcase from '@/components/VibeCheckShowcase';
 import SelfieReactionModal, { SelfieReactionPayload } from '@/components/SelfieReactionModal';
 import SelfieReactionStack, { SelfieReactionItem } from '@/components/SelfieReactionStack';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
+import { globalAudioPlayer } from '@/lib/audioPlayer';
 
 
 // ==========================================
@@ -255,6 +256,20 @@ export default function RoomPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [voiceUploading, setVoiceUploading] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [audioPlayerState, setAudioPlayerState] = useState<{
+    isPlaying: boolean;
+    isLoading: boolean;
+    currentId: string | null;
+  }>({
+    isPlaying: false,
+    isLoading: false,
+    currentId: null,
+  });
+
+  useEffect(() => {
+    return globalAudioPlayer.subscribe('room-page', setAudioPlayerState);
+  }, []);
+
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -1279,6 +1294,8 @@ export default function RoomPage() {
     if (!previewAudioRef.current) {
       const url = URL.createObjectURL(audioBlob);
       const audio = new Audio(url);
+      (audio as any).playsInline = true;
+      audio.preload = 'auto';
       audio.onended = () => setIsPlayingPreview(false);
       audio.onerror = () => setIsPlayingPreview(false);
       previewAudioRef.current = audio;
@@ -1288,6 +1305,7 @@ export default function RoomPage() {
       previewAudioRef.current.pause();
       setIsPlayingPreview(false);
     } else {
+      previewAudioRef.current.currentTime = 0;
       previewAudioRef.current.play().then(() => {
         setIsPlayingPreview(true);
       }).catch((e) => {
@@ -2505,21 +2523,21 @@ export default function RoomPage() {
                       {/* Ses Çalma Butonu & Dalga Animasyonu */}
                       <div className="flex items-center gap-3 py-2">
                         <button
-                          onClick={() => {
-                            const audioElem = document.getElementById(`audio-${photo.id}`) as HTMLAudioElement;
-                            if (audioElem) {
-                              if (playingAudioId === photo.id) {
-                                audioElem.pause();
-                                setPlayingAudioId(null);
-                              } else {
-                                audioElem.play();
-                                setPlayingAudioId(photo.id);
-                              }
-                            }
-                          }}
-                          className="w-12 h-12 rounded-full bg-[#CCFF00] text-black flex items-center justify-center font-black shadow-[0_0_20px_rgba(204,255,0,0.4)] cursor-pointer"
+                          onClick={() => globalAudioPlayer.toggle(photo.id, getMediaUrl(photo.r2_file_key))}
+                          className="w-12 h-12 rounded-full bg-[#CCFF00] hover:bg-[#b8e600] active:scale-95 text-black flex items-center justify-center font-black shadow-[0_0_20px_rgba(204,255,0,0.4)] cursor-pointer transition-transform shrink-0"
+                          title={
+                            audioPlayerState.currentId === photo.id && audioPlayerState.isPlaying
+                              ? 'Durdur'
+                              : 'Dinle'
+                          }
                         >
-                          {playingAudioId === photo.id ? <Pause className="w-5 h-5 fill-black" /> : <Play className="w-5 h-5 fill-black ml-0.5" />}
+                          {audioPlayerState.currentId === photo.id && audioPlayerState.isLoading ? (
+                            <RefreshCw className="w-5 h-5 animate-spin text-black" />
+                          ) : audioPlayerState.currentId === photo.id && audioPlayerState.isPlaying ? (
+                            <Pause className="w-5 h-5 fill-black" />
+                          ) : (
+                            <Play className="w-5 h-5 fill-black ml-0.5" />
+                          )}
                         </button>
                         
                         <div className="flex-1 space-y-1">
@@ -2528,20 +2546,15 @@ export default function RoomPage() {
                               <div
                                 key={i}
                                 className={`w-1 rounded-full transition-all duration-300 ${
-                                  playingAudioId === photo.id ? 'bg-[#CCFF00] animate-pulse' : 'bg-white/20'
+                                  audioPlayerState.currentId === photo.id && audioPlayerState.isPlaying
+                                    ? 'bg-[#CCFF00] animate-pulse'
+                                    : 'bg-white/20'
                                 }`}
                                 style={{ height: `${h}px` }}
                               />
                             ))}
                           </div>
                         </div>
-
-                        <audio
-                          id={`audio-${photo.id}`}
-                          src={getMediaUrl(photo.r2_file_key)}
-                          onEnded={() => setPlayingAudioId(null)}
-                          className="hidden"
-                        />
                       </div>
 
                       <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">

@@ -8,6 +8,7 @@ import {
   Plus, Check, Sparkles, AlertCircle, RefreshCw, EyeOff, Radio
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { globalAudioPlayer } from '@/lib/audioPlayer';
 
 export interface ChatChannel {
   id: string;
@@ -91,9 +92,20 @@ export default function ChatDrawer({
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
 
-  // Ses Oynatıcı Durumu
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  // Ses Oynatıcı Durumu (Universal Mobile Player)
+  const [audioPlayerState, setAudioPlayerState] = useState<{
+    isPlaying: boolean;
+    isLoading: boolean;
+    currentId: string | null;
+  }>({
+    isPlaying: false,
+    isLoading: false,
+    currentId: null,
+  });
+
+  useEffect(() => {
+    return globalAudioPlayer.subscribe('chat-drawer', setAudioPlayerState);
+  }, []);
 
   // Bomba Mesaj Geri Sayımları (Okunduktan sonra 5 sn)
   const [burningBombIds, setBurningBombIds] = useState<Record<string, number>>({});
@@ -342,14 +354,27 @@ export default function ChatDrawer({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
+
+      let mimeType = 'audio/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/webm';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = '';
+          }
+        }
+      }
+
+      const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const finalType = mediaRecorder.mimeType || mimeType || 'audio/mp4';
+        const audioBlob = new Blob(audioChunksRef.current, { type: finalType });
         stream.getTracks().forEach((track) => track.stop());
 
         // Base64 veya R2 yüklemesi (DataURL ile anında hafif gönderim)
@@ -828,25 +853,18 @@ export default function ChatDrawer({
                             {msg.media_type === 'audio' && msg.media_url && (
                               <div className="flex items-center gap-2.5 py-1">
                                 <button
-                                  onClick={() => {
-                                    if (playingAudioId === msg.id) {
-                                      audioElementRef.current?.pause();
-                                      setPlayingAudioId(null);
-                                    } else {
-                                      if (audioElementRef.current) {
-                                        audioElementRef.current.pause();
-                                      }
-                                      const audio = new Audio(msg.media_url);
-                                      audio.onended = () => setPlayingAudioId(null);
-                                      audio.play();
-                                      audioElementRef.current = audio;
-                                      setPlayingAudioId(msg.id);
-                                    }
-                                  }}
-                                  className="w-8 h-8 rounded-full bg-black/30 flex items-center justify-center shrink-0 cursor-pointer"
+                                  onClick={() => globalAudioPlayer.toggle(msg.id, msg.media_url!)}
+                                  className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center shrink-0 transition-transform active:scale-95 cursor-pointer shadow-sm"
+                                  title={
+                                    audioPlayerState.currentId === msg.id && audioPlayerState.isPlaying
+                                      ? 'Durdur'
+                                      : 'Dinle'
+                                  }
                                 >
-                                  {playingAudioId === msg.id ? (
-                                    <Pause className="w-4 h-4" />
+                                  {audioPlayerState.currentId === msg.id && audioPlayerState.isLoading ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin text-[#CCFF00]" />
+                                  ) : audioPlayerState.currentId === msg.id && audioPlayerState.isPlaying ? (
+                                    <Pause className="w-4 h-4 text-[#CCFF00]" />
                                   ) : (
                                     <Play className="w-4 h-4 ml-0.5" />
                                   )}
@@ -858,7 +876,7 @@ export default function ChatDrawer({
                                     <span
                                       key={i}
                                       className={`w-1 rounded-full transition-all ${
-                                        playingAudioId === msg.id
+                                        audioPlayerState.currentId === msg.id && audioPlayerState.isPlaying
                                           ? 'bg-red-500 animate-pulse'
                                           : isMe ? 'bg-black/60' : 'bg-[#CCFF00]'
                                       }`}
