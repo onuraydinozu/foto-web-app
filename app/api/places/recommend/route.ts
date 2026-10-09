@@ -72,11 +72,12 @@ ${filterContext}
 GÖREV:
 "${targetDistrict}" bölgesinde "${cleanSearchQuery}" kategorisinde en bilinen, yüksek puanlı ve popüler 4 gerçek mekanı listele.
 
-KURALLAR:
-1. Web araması yapma, doğrudan hafızandaki gerçek mekanları getir.
-2. Açıklamaları tek cümle tut, süreyi 2 saniyenin altında tut.
-3. ASLA uydurma mekan yazma, sadece bilinen gerçek mekanları listele.
-4. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
+KESİN KURALLAR:
+1. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme (Örn: Asla site lokalleri veya özel tesisleri yazma).
+2. Yalnızca Google Haritalar'da resmi dükkan/işletme kaydı olan, herkesin kapıdan serbestçe girebileceği gerçek ticari işletmeleri öner.
+3. Açıklamaları tek cümle tut, süreyi 2 saniyenin altında tut.
+4. ASLA uydurma mekan yazma, sadece bilinen gerçek ticari mekanları listele.
+5. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
 
 \`\`\`json
 [
@@ -108,10 +109,26 @@ KURALLAR:
 
     for (const modelName of modelsToTry) {
       try {
-        response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt
-        });
+        try {
+          response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              topP: 0.8,
+              tools: [{ googleSearch: {} }]
+            }
+          });
+        } catch (groundingErr: any) {
+          response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              topP: 0.8
+            }
+          });
+        }
         if (response?.text) break;
       } catch (err: any) {
         lastError = err;
@@ -145,7 +162,7 @@ KURALLAR:
           places = parsed.map((p: any, idx: number) => {
             const placeName = p.name || 'Mekan';
             const placeDistrict = p.district || targetDistrict;
-            const mapsUrl = p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + placeDistrict)}`;
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + placeDistrict)}`;
 
             return {
               place_id: `rec_${Date.now()}_${idx}`,

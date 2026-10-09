@@ -40,13 +40,14 @@ ${conversationHistory}
 KULLANICININ SON İSTEĞİ:
 "${cleanLastMessage || rawLastUserMessage}"
 
-GÖREVİN VE KURALLAR:
-1. Kullanıcının istediği semtteki (Örn: Samandıra, Kadıköy, Moda, Beşiktaş vb.) en bilinen, popüler ve açık 3 gerçek mekanı öner.
-2. ASLA hayalinden mekan uydurma. Sadece gerçek ve bilinen popüler mekanları listele.
-3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse:
+KESİN KURALLAR:
+1. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme (Örn: Asla "Sur Yapı Lavender Sosyal Tesisi" veya site lokalleri gibi yerleri yazma).
+2. Yalnızca Google Haritalar'da resmi dükkan/işletme kaydı olan, herkesin kapıdan serbestçe girebileceği gerçek ticari mekanları öner.
+3. Eğer o semtte aranan kriterde yeterli mekan bulamazsan ASLA mekan uydurma; 'Bu semtte istediğin kritere uygun mekan sayısı çok kısıtlı, en yakın şu popüler noktaya bakabilirsin' de.
+4. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse:
    - "places" dizisini boş bırak ([]).
    - "text" alanında kısaca ve samimi bir dille hangi semtte olduğunu sor.
-4. Eğer semt ve istek belliyse, önerdiğin 3 mekanı ve samimi 1-2 cümlelik yorumunu YALNIZCA geçerli bir JSON nesnesi olarak döndür:
+5. Eğer semt ve istek belliyse, önerdiğin en fazla 3 gerçek ticari mekanı ve samimi 1-2 cümlelik yorumunu YALNIZCA geçerli bir JSON nesnesi olarak döndür:
 
 \`\`\`json
 {
@@ -66,17 +67,35 @@ Sadece bu JSON formatında cevap ver.`;
 
     console.log(`[Gemini AI Chat Call]: Prompt sent for: "${cleanLastMessage || rawLastUserMessage}"`);
 
-    // Model önceliği: gemini-flash-lite-latest (taze kota & ultra hızlı), ardından gemini-flash-latest
-    let response: any;
+    // 1. Sıcaklık ve model yapılandırması (Halüsinasyon engelleyici: temperature: 0.1, topP: 0.8)
     const modelsToTry = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
+    let response: any;
     let lastError: any = null;
 
+    // Önce Search Grounding ile dene, kota (429) durumunda aynı sıcaklık ayarıyla direkt modele düş
     for (const modelName of modelsToTry) {
       try {
-        response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt
-        });
+        try {
+          response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              topP: 0.8,
+              tools: [{ googleSearch: {} }]
+            }
+          });
+        } catch (groundingErr: any) {
+          // Grounding kota sınırındaysa (429) halüsinasyonsuz katı model ile devam et
+          response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              topP: 0.8
+            }
+          });
+        }
         if (response?.text) break;
       } catch (err: any) {
         lastError = err;
@@ -109,23 +128,28 @@ Sadece bu JSON formatında cevap ver.`;
         const parsed = JSON.parse(jsonString);
         if (parsed.text) responseText = parsed.text;
         if (Array.isArray(parsed.places)) {
-          places = parsed.places.map((p: any, idx: number) => ({
-            place_id: `chat_${Date.now()}_${idx}`,
-            name: p.name || 'Mekan',
-            district: p.district || '',
-            rating: p.rating || '4.4',
-            reason: p.summary || p.reason || 'Tavsiye edilen popüler mekan.',
-            summary: p.summary || p.reason || 'Tavsiye edilen popüler mekan.',
-            mapsUrl: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`,
-            googleMapsUri: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`
-          }));
+          places = parsed.places.map((p: any, idx: number) => {
+            const placeName = p.name || 'Mekan';
+            const placeDistrict = p.district || '';
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + placeDistrict)}`;
+
+            return {
+              place_id: `chat_${Date.now()}_${idx}`,
+              name: placeName,
+              district: placeDistrict,
+              rating: p.rating || '4.4',
+              reason: p.summary || p.reason || 'Tavsiye edilen gerçek ticari mekan.',
+              summary: p.summary || p.reason || 'Tavsiye edilen gerçek ticari mekan.',
+              mapsUrl: mapsUrl,
+              googleMapsUri: mapsUrl
+            };
+          });
         }
       } catch (e) {
         console.error('Failed to parse places JSON from Gemini response:', e);
       }
     }
 
-    // Eğer json parse edilemediyse ama fullText varsa temizle
     if (places.length === 0 && fullText && !jsonString) {
       responseText = fullText.replace(/```(?:json)?[\s\S]*?```/g, '').trim();
     }
