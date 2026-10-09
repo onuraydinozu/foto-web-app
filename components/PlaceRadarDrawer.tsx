@@ -570,10 +570,10 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                             )}
                             
                             <div className="flex flex-wrap gap-2 text-[10px] font-mono text-neutral-400">
-                              {place.distance_km !== null && place.distance_km !== undefined && (
+                              {(place.distance || (place.distance_km !== null && place.distance_km !== undefined)) && (
                                 <span className="flex items-center gap-1 bg-white/5 text-[#CCFF00] px-2 py-0.5 rounded-full border border-[#CCFF00]/20 font-bold">
                                   <MapPin className="w-3 h-3" />
-                                  {place.distance_km.toFixed(1)} km
+                                  {place.distance || `${place.distance_km.toFixed(1)} km`}
                                 </span>
                               )}
                               <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">

@@ -7,7 +7,34 @@ export const maxDuration = 30;
 const placesCache = new Map<string, { data: any[]; expiry: number }>();
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
-// Kategoriyi OSM etiketlerine eşle
+// Haversine Formülü: İki koordinat arası kuş uçuşu mesafe (km)
+function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Dünya yarıçapı (km)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Kategori Görünen Adını Belirle
+function getCategoryDisplayName(category: string): string {
+  const cat = category || '';
+  if (cat.includes('Kahve')) return '3. Nesil Kahve';
+  if (cat.includes('Sokak') || cat.includes('Hızlı')) return 'Hızlı / Sokak';
+  if (cat.includes('Oturmalı') || cat.includes('Dinner')) return 'Oturmalı Yemek';
+  if (cat.includes('Pub') || cat.includes('Bar') || cat.includes('Gece')) return 'Pub / Gece';
+  if (cat.includes('Aktivite') || cat.includes('Kaos')) return 'Aktivite & Kaos';
+  if (cat.includes('Kahvaltı') || cat.includes('Brunch')) return 'Kahvaltı & Brunch';
+  return category.replace(/[^\p{L}\p{N}\s/&]/gu, '').trim() || 'Mekan';
+}
+
+// Kategoriyi OSM etiket filtrelerine eşle
 function getOsmFilter(category: string): { type: 'amenity' | 'leisure_mixed'; filter: string } {
   const cat = (category || '').toLowerCase();
   
@@ -41,6 +68,7 @@ export async function POST(req: Request) {
 
     const targetDistrict = district && district !== 'Anlık Konum' ? district : 'Kadıköy';
     const mapping = getOsmFilter(category);
+    const categoryName = getCategoryDisplayName(category);
 
     // 1. KOORDİNAT BELİRLEME
     let latitude = typeof lat === 'number' && !isNaN(lat) ? lat : null;
@@ -79,14 +107,14 @@ export async function POST(req: Request) {
     if (cachedEntry && cachedEntry.expiry > Date.now() && cachedEntry.data.length > 0) {
       console.log(`[OSM Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan önbellekten döndürüldü.`);
       return NextResponse.json({
-        success: true,
         places: cachedEntry.data,
         data: cachedEntry.data,
+        success: true,
         cached: true
       });
     }
 
-    console.log(`[Overpass Query]: district="${targetDistrict}", category="${category}", coords=${latitude},${longitude}, filter="${mapping.filter}"`);
+    console.log(`[Overpass Query]: district="${targetDistrict}", category="${categoryName}", coords=${latitude},${longitude}, filter="${mapping.filter}"`);
 
     // 3. OVERPASS API 2.5 KM (2500m) YARIÇAPLI SORGU OLUŞTUR
     let overpassQuery = '';
@@ -99,7 +127,7 @@ export async function POST(req: Request) {
           node["amenity"~"cafe|restaurant"](around:2500,${latitude},${longitude});
           way["amenity"~"cafe|restaurant"](around:2500,${latitude},${longitude});
         );
-        out center 25;
+        out center 35;
       `;
     } else {
       overpassQuery = `
@@ -108,11 +136,11 @@ export async function POST(req: Request) {
           node["amenity"~"${mapping.filter}"](around:2500,${latitude},${longitude});
           way["amenity"~"${mapping.filter}"](around:2500,${latitude},${longitude});
         );
-        out center 25;
+        out center 35;
       `;
     }
 
-    let formattedPlaces: any[] = [];
+    let rawElements: any[] = [];
 
     // 4. OVERPASS API İSTEĞİ
     try {
@@ -128,58 +156,73 @@ export async function POST(req: Request) {
 
       if (osmRes.ok) {
         const osmJson = await osmRes.json();
-        const elements = (osmJson.elements || []).filter(
-          (el: any) => el.tags && (el.tags.name || el.tags['name:tr'] || el.tags.brand)
+        // 4.1. İSMİ OLMAYAN (!element.tags?.name) YERLERİ FİLTRELE
+        rawElements = (osmJson.elements || []).filter(
+          (el: any) => el && el.tags && el.tags.name && typeof el.tags.name === 'string' && el.tags.name.trim().length > 0
         );
-
-        if (elements.length > 0) {
-          formattedPlaces = elements.slice(0, 15).map((item: any, idx: number) => {
-            const rawName = item.tags?.name || item.tags?.['name:tr'] || item.tags?.brand || 'Öne Çıkan Mekan';
-            const itemLat = item.lat || item.center?.lat || latitude;
-            const itemLon = item.lon || item.center?.lon || longitude;
-
-            const street = item.tags?.['addr:street']
-              ? `${item.tags['addr:street']} ${item.tags['addr:housenumber'] || ''}`.trim()
-              : '';
-            const suburb = item.tags?.['addr:suburb'] || item.tags?.['addr:district'] || targetDistrict;
-            const address = street ? `${street}, ${suburb}, İstanbul` : `${suburb}, İstanbul`;
-
-            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawName + ' ' + targetDistrict)}`;
-            const cuisine = item.tags?.cuisine ? item.tags.cuisine.replace(/;/g, ', ') : '';
-            const openingHours = item.tags?.opening_hours;
-
-            return {
-              place_id: `osm_${item.type}_${item.id}`,
-              name: rawName,
-              district: targetDistrict,
-              address: address,
-              rating: Number((4.2 + ((idx * 3) % 6) * 0.1).toFixed(1)),
-              review_count: 85 + ((idx * 27) % 200),
-              price_level: item.tags?.price_level || '$$',
-              summary: cuisine ? `${cuisine} • ${targetDistrict}` : `${targetDistrict} 2.5 km çevresinde gerçek kayıtlı işletme.`,
-              reason: `${targetDistrict} bölgesinde 2.5 km yarıçapında açık OpenStreetMap işletmesi.`,
-              isOpen: true,
-              opening_hours: openingHours,
-              parking_info: { valet: false, street: true },
-              mapsUrl: mapsUrl,
-              googleMapsUri: mapsUrl,
-              photo_url: null,
-              lat: itemLat,
-              lng: itemLon
-            };
-          });
-        }
       }
     } catch (overpassErr) {
       console.warn('[Overpass API Request Error/Timeout]:', overpassErr);
     }
 
     // 5. YEDEK ARAMA: EĞER OVERPASS BOŞ DÖNER VEYA KESİLİRSE (NOMINATIM GÜVENCESİ)
-    if (formattedPlaces.length === 0) {
+    let formattedPlaces: any[] = [];
+
+    if (rawElements.length > 0) {
+      // 5.1. MESAFEYİ HAVERSINE İLE HESAPLA VE OBJEYİ OLUŞTUR
+      const parsedList = rawElements.map((item: any, idx: number) => {
+        const name = item.tags.name.trim();
+        const itemLat = item.lat || item.center?.lat || latitude;
+        const itemLon = item.lon || item.center?.lon || longitude;
+
+        // Haversine formülü ile kuş uçuşu gerçek mesafe (km)
+        const distKm = calculateHaversineDistance(latitude, longitude, itemLat, itemLon);
+
+        const suburb = item.tags['addr:suburb'] || item.tags['addr:district'] || item.tags['addr:neighbourhood'] || targetDistrict;
+        const street = item.tags['addr:street']
+          ? `${item.tags['addr:street']} ${item.tags['addr:housenumber'] || ''}`.trim()
+          : '';
+        const address = street ? `${street}, ${suburb}, İstanbul` : `${suburb}, İstanbul`;
+
+        // Google Maps arama linki: işletmenin gerçek adı ve koordinatlarıyla
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + (targetDistrict || ''))}&query_place_id=${itemLat},${itemLon}`;
+
+        const rating = item.tags.rating || item.tags.stars || (4.2 + ((idx * 3) % 6) * 0.1).toFixed(1);
+        const cuisine = item.tags.cuisine ? item.tags.cuisine.replace(/;/g, ', ') : '';
+
+        return {
+          _distKm: distKm,
+          name: name,
+          district: suburb,
+          distance: `${distKm.toFixed(1)} km`,
+          distance_km: Number(distKm.toFixed(1)),
+          rating: String(rating),
+          category: categoryName,
+          mapsUrl: mapsUrl,
+          // Destekleyici alanlar (Arayüz ve oylama uyumluluğu için)
+          place_id: `osm_${item.type}_${item.id}`,
+          address: address,
+          summary: cuisine ? `${cuisine} • ${suburb}` : `${suburb} bölgesinde kayıtlı gerçek mekan.`,
+          reason: `${suburb} çevresinde ${distKm.toFixed(1)} km mesafede açık işletme.`,
+          isOpen: true,
+          parking_info: { valet: false, street: true },
+          googleMapsUri: mapsUrl,
+          lat: itemLat,
+          lng: itemLon
+        };
+      });
+
+      // 5.2. MESAFEYE GÖRE EN YAKINDAN EN UZAĞA SIRALA (SORT)
+      parsedList.sort((a, b) => a._distKm - b._distKm);
+
+      // Temizlenen ve sıralanan ilk 15 mekanı al (_distKm geçici alanını çıkar)
+      formattedPlaces = parsedList.slice(0, 15).map(({ _distKm, ...rest }) => rest);
+    } else {
+      // Nominatim Fallback
       console.log(`[OSM Fallback Nominatim]: Overpass yanıt vermedi veya 0 sonuç, Nominatim devrede...`);
       try {
         const nominatimKeyword = mapping.type === 'leisure_mixed' ? 'leisure' : (mapping.filter.includes('fast') ? 'fast_food' : (mapping.filter.includes('restaurant') ? 'restaurant' : 'cafe'));
-        const searchUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimKeyword + ' ' + targetDistrict + ' Istanbul')}&format=json&limit=10&addressdetails=1`;
+        const searchUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimKeyword + ' ' + targetDistrict + ' Istanbul')}&format=json&limit=15&addressdetails=1`;
         
         const nomRes = await fetch(searchUrl, {
           headers: {
@@ -191,29 +234,38 @@ export async function POST(req: Request) {
 
         if (nomRes.ok) {
           const nomData = await nomRes.json();
-          if (Array.isArray(nomData) && nomData.length > 0) {
-            formattedPlaces = nomData.map((item: any, idx: number) => {
+          if (Array.isArray(nomData)) {
+            const nomValid = nomData.filter((item: any) => item && (item.name || item.display_name));
+            const nomParsed = nomValid.map((item: any, idx: number) => {
               const rawName = item.name || item.display_name?.split(',')[0]?.trim() || 'Mekan';
-              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawName + ' ' + targetDistrict)}`;
+              const itemLat = parseFloat(item.lat);
+              const itemLon = parseFloat(item.lon);
+              const distKm = calculateHaversineDistance(latitude, longitude, itemLat, itemLon);
+              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawName + ' ' + (targetDistrict || ''))}&query_place_id=${itemLat},${itemLon}`;
+
               return {
-                place_id: `osm_nom_${item.place_id || idx}`,
+                _distKm: distKm,
                 name: rawName,
                 district: targetDistrict,
+                distance: `${distKm.toFixed(1)} km`,
+                distance_km: Number(distKm.toFixed(1)),
+                rating: '4.3',
+                category: categoryName,
+                mapsUrl: mapsUrl,
+                place_id: `osm_nom_${item.place_id || idx}`,
                 address: item.display_name,
-                rating: 4.3,
-                review_count: 100 + idx * 15,
-                price_level: '$$',
                 summary: `${targetDistrict} çevresinde popüler işletme.`,
-                reason: `${targetDistrict} çevresinde doğrulanmış kayıtlı dükkan.`,
+                reason: `${targetDistrict} bölgesinde ${distKm.toFixed(1)} km mesafede açık mekan.`,
                 isOpen: true,
                 parking_info: { valet: false, street: true },
-                mapsUrl: mapsUrl,
                 googleMapsUri: mapsUrl,
-                photo_url: null,
-                lat: parseFloat(item.lat),
-                lng: parseFloat(item.lon)
+                lat: itemLat,
+                lng: itemLon
               };
             });
+
+            nomParsed.sort((a, b) => a._distKm - b._distKm);
+            formattedPlaces = nomParsed.slice(0, 15).map(({ _distKm, ...rest }) => rest);
           }
         }
       } catch (nomErr) {
@@ -229,11 +281,12 @@ export async function POST(req: Request) {
       });
     }
 
+    // 7. FRONTEND'E TEMİZ JSON DÖN
     return NextResponse.json({
-      success: true,
       places: formattedPlaces,
       data: formattedPlaces,
-      message: formattedPlaces.length === 0 ? `"${targetDistrict}" çevresinde 2.5 km yarıçapında mekan bulunamadı.` : undefined
+      success: true,
+      message: formattedPlaces.length === 0 ? `"${targetDistrict}" çevresinde mekan bulunamadı.` : undefined
     });
 
   } catch (error: any) {
