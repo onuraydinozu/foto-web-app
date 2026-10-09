@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { S3Client, ListObjectsV2Command, DeleteObjectsCommand, ListObjectsV2CommandOutput } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -21,17 +22,63 @@ function getSupabase() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
-function verifyAdmin(req: Request): boolean {
+// Brute-force saldırılarına karşı IP bazlı hız kısıtlaması (15 dakikada maks 5 deneme)
+const rateLimitMap = new Map<string, { attempts: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  if (!record) return true;
+  if (now > record.resetAt) {
+    rateLimitMap.delete(ip);
+    return true;
+  }
+  return record.attempts < 5;
+}
+
+function recordFailedAttempt(ip: string) {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  if (!record || now > record.resetAt) {
+    rateLimitMap.set(ip, { attempts: 1, resetAt: now + 15 * 60 * 1000 });
+  } else {
+    record.attempts += 1;
+  }
+}
+
+function verifyAdmin(req: Request): { ok: boolean; rateLimited?: boolean } {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown-ip";
+  if (!checkRateLimit(ip)) {
+    return { ok: false, rateLimited: true };
+  }
+
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "").trim();
   const validSecret = process.env.ADMIN_SECRET_KEY || "snapadmin2026";
-  return token === validSecret;
+
+  if (!token || token.length !== validSecret.length) {
+    recordFailedAttempt(ip);
+    return { ok: false };
+  }
+
+  try {
+    const isValid = crypto.timingSafeEqual(Buffer.from(token), Buffer.from(validSecret));
+    if (!isValid) recordFailedAttempt(ip);
+    return { ok: isValid };
+  } catch {
+    recordFailedAttempt(ip);
+    return { ok: false };
+  }
 }
 
 // GET: Depolama İstatistikleri ve Tüm Aktif Odalar
 export async function GET(req: Request) {
-  if (!verifyAdmin(req)) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  const auth = verifyAdmin(req);
+  if (auth.rateLimited) {
+    return NextResponse.json({ error: "Çok fazla başarısız deneme yapıldı. Güvenlik nedeniyle 15 dakika kilitlendi." }, { status: 429 });
+  }
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Hatalı yönetici anahtarı." }, { status: 401 });
   }
 
   try {
@@ -90,8 +137,12 @@ export async function GET(req: Request) {
 
 // POST: Oda Silme veya Tüm Depoyu Sıfırlama (Purge All Storage)
 export async function POST(req: Request) {
-  if (!verifyAdmin(req)) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  const auth = verifyAdmin(req);
+  if (auth.rateLimited) {
+    return NextResponse.json({ error: "Çok fazla başarısız deneme yapıldı. Güvenlik nedeniyle 15 dakika kilitlendi." }, { status: 429 });
+  }
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Hatalı yönetici anahtarı." }, { status: 401 });
   }
 
   try {

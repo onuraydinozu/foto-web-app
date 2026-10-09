@@ -44,7 +44,7 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Hatalı Admin Şifresi! Lütfen ADMIN_SECRET_KEY değerini kontrol edin.');
+        const errJson = await res.json().catch(() => ({})); throw new Error(errJson.error || 'Hatalı Yönetici Şifresi!');
       }
 
       const resData = await res.json();
@@ -176,7 +176,7 @@ export default function AdminPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="password"
-              placeholder="ADMIN_SECRET_KEY..."
+              placeholder="Yönetici Şifresi..."
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-black/50 border border-white/15 text-white placeholder:text-neutral-600 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#CCFF00] transition"
@@ -197,9 +197,10 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <p className="text-[11px] text-neutral-500 font-mono">
-            Varsayılan Şifre: <span className="text-[#CCFF00]">snapadmin2026</span>
-          </p>
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-neutral-500 font-mono">
+            <Lock className="w-3.5 h-3.5 text-[#CCFF00]" />
+            <span>256-Bit Uçtan Uca Korumalı Yönetici Paneli</span>
+          </div>
         </motion.div>
       </main>
     );
