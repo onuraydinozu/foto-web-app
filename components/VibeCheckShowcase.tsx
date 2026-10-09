@@ -229,15 +229,17 @@ export default function VibeCheckShowcase({
 
         {/* Aksiyon Butonları */}
         <div className="flex items-center gap-2">
-          {isActive && (
-            <button
-              onClick={onTakePhoto}
-              className="py-2 px-3 sm:px-4 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Sen de Çek</span>
-            </button>
-          )}
+          <button
+            onClick={onTakePhoto}
+            className={`py-2 px-3 sm:px-4 rounded-xl font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95 ${
+              isActive
+                ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black shadow-[0_0_20px_rgba(204,255,0,0.4)] animate-pulse'
+                : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+            }`}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>{isActive ? '⚡ Anında Çek 📸' : '📸 Sen de Çek'}</span>
+          </button>
 
           {photos.length > 0 && (
             <button
@@ -300,9 +302,26 @@ export default function VibeCheckShowcase({
           })}
         </div>
       ) : (
-        <div className="text-center py-8 rounded-2xl bg-black/30 border border-dashed border-white/10 text-neutral-400 text-xs">
-          <p className="font-bold text-white mb-1">Henüz Vibe Check karesi gelmedi!</p>
-          <p className="text-[11px] text-neutral-500">Kamerayı açıp ilk anlık fotoğrafı sen at.</p>
+        <div 
+          onClick={onTakePhoto}
+          className="text-center py-8 px-4 rounded-2xl bg-black/40 border-2 border-dashed border-red-500/40 hover:border-[#CCFF00] text-neutral-300 text-xs cursor-pointer transition flex flex-col items-center justify-center gap-2 group"
+        >
+          <div className="w-10 h-10 rounded-full bg-red-500/20 group-hover:bg-[#CCFF00]/20 flex items-center justify-center transition">
+            <Camera className="w-5 h-5 text-red-400 group-hover:text-[#CCFF00] transition" />
+          </div>
+          <p className="font-bold text-white text-sm">Henüz Vibe Check karesi gelmedi!</p>
+          <p className="text-[11px] text-neutral-400">İlk anlık kareyi basmak için buraya dokun ⚡</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTakePhoto();
+            }}
+            className="mt-1 px-4 py-2 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>⚡ Anında Çek 📸</span>
+          </button>
         </div>
       )}
     </div>

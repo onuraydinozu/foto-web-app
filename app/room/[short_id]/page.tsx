@@ -296,6 +296,7 @@ export default function RoomPage() {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (showChatDrawer) return; // DM açıkken ana sayfa kaydırmasını devre dışı bırak
     touchStartRef.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
@@ -303,7 +304,7 @@ export default function RoomPage() {
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
+    if (showChatDrawer || !touchStartRef.current) return;
     const dx = touchStartRef.current.x - e.changedTouches[0].clientX;
     const dy = touchStartRef.current.y - e.changedTouches[0].clientY;
     // Kullanıcı sağdan sola en az 65px kaydırdıysa ve dikey kaydırma baskın değilse
@@ -322,6 +323,15 @@ export default function RoomPage() {
   const [showVibeAlert, setShowVibeAlert] = useState(false);
   const [isTriggeringVibe, setIsTriggeringVibe] = useState(false);
   const vibeCameraInputRef = useRef<HTMLInputElement>(null);
+  const pendingVibeCheckIdRef = useRef<string | null>(null);
+
+  const handleTriggerVibePhoto = (vibeId?: string) => {
+    pendingVibeCheckIdRef.current = vibeId || latestVibeCheck?.id || activeVibeCheck?.id || null;
+    if (vibeCameraInputRef.current) {
+      vibeCameraInputRef.current.value = '';
+      vibeCameraInputRef.current.click();
+    }
+  };
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDownloadModal, setShowBulkDownloadModal] = useState(false);
 
@@ -1212,7 +1222,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 }
 
   // Doğrudan Fotoğraf / Video Yükleme
-  const processFiles = async (fileList: FileList | File[]) => {
+  const processFiles = async (fileList: FileList | File[], forVibeCheckId?: string) => {
     if (storageStats.isExceeded) {
       handleQuotaExceeded('10 GB ücretsiz kota koruma altında! Yeni yükleme yapılamaz.');
       return;
@@ -1333,9 +1343,13 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 
         let vibeTag = '';
         let isLate = false;
-        if (activeVibeCheck) {
-          isLate = Date.now() > new Date(activeVibeCheck.expires_at).getTime();
-          vibeTag = `__VC:${activeVibeCheck.id}:${isLate ? 'LATE' : 'FAST'}`;
+        const targetVibe = forVibeCheckId 
+          ? (activeVibeCheck?.id === forVibeCheckId ? activeVibeCheck : latestVibeCheck?.id === forVibeCheckId ? latestVibeCheck : { id: forVibeCheckId, expires_at: new Date(0).toISOString() })
+          : activeVibeCheck;
+
+        if (targetVibe?.id) {
+          isLate = Date.now() > new Date(targetVibe.expires_at).getTime();
+          vibeTag = `__VC:${targetVibe.id}:${isLate ? 'LATE' : 'FAST'}`;
         }
 
         const finalUploader = (deviceModel ? `${uploaderTag}__DEV:${deviceModel}` : uploaderTag) + vibeTag;
@@ -1347,8 +1361,8 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
           uploaded_by: finalUploader,
           taken_at: takenAt,
         };
-        if (activeVibeCheck?.id) {
-          insertData.vibe_check_id = activeVibeCheck.id;
+        if (targetVibe?.id) {
+          insertData.vibe_check_id = targetVibe.id;
           insertData.is_late = isLate;
         }
 
@@ -1370,6 +1384,9 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
             myIds.push(newPhoto.id);
             localStorage.setItem('snaproom_my_photos', JSON.stringify(myIds));
           } catch (e) {}
+          if (targetVibe?.id) {
+            fetchVibeCheckStatus(room.id);
+          }
         }
       } catch (err) {
         console.error('Yükleme hatası (Ağ koptu), IndexedDB kuyruğuna alınıyor:', err);
@@ -2087,7 +2104,9 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 
   const handleVibePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      processFiles(e.target.files);
+      const vId = pendingVibeCheckIdRef.current || latestVibeCheck?.id || activeVibeCheck?.id;
+      processFiles(e.target.files, vId);
+      pendingVibeCheckIdRef.current = null;
     }
   };
 
@@ -2179,8 +2198,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
         ref={vibeCameraInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
-        className="hidden"
+        style={{ position: 'fixed', top: '-1000px', left: '-1000px', opacity: 0, pointerEvents: 'none' }}
         onChange={handleVibePhotoSelected}
       />
 
@@ -2760,7 +2778,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
               photos={vibePhotos}
               capsuleName={capsuleName}
               getMediaUrl={getMediaUrl}
-              onTakePhoto={() => vibeCameraInputRef.current?.click()}
+              onTakePhoto={() => handleTriggerVibePhoto(latestVibeCheck.id)}
               isActive={Boolean(activeVibeCheck && new Date(activeVibeCheck.expires_at).getTime() > Date.now())}
             />
           )}
@@ -4057,6 +4075,21 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
         currentUserName={currentNickname}
         onSubmit={handleAddSelfieReaction}
       />
+
+      {/* VIBE CHECK CANLI ALARMI (SENKRONİZE GERİ SAYIM & FOTOĞRAF RULETİ) */}
+      <AnimatePresence>
+        {showVibeAlert && activeVibeCheck && (
+          <VibeCheckAlert
+            vibeCheck={activeVibeCheck}
+            onClose={() => setShowVibeAlert(false)}
+            onTakePhoto={() => {
+              setShowVibeAlert(false);
+              handleTriggerVibePhoto(activeVibeCheck.id);
+            }}
+            shareUrl={shareInviteUrl}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

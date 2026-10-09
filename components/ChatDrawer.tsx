@@ -79,6 +79,55 @@ export default function ChatDrawer({
       };
     }
   }, [isOpen]);
+
+  // Tarayıcı Geri Tuşu & Soldan Sağa Swipe Koruması (Kapsülden çıkmak yerine DM'i kapatır)
+  const isPushedRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Çekmece açılınca history state ekle
+      window.history.pushState({ modal: 'chat_drawer' }, '');
+      isPushedRef.current = true;
+
+      const handlePopState = () => {
+        // Kullanıcı soldan sağa kaydırdığında (iOS back gesture) veya geri tuşuna bastığında
+        // sayfayı terk etmek yerine sadece DM çekmecesini kapat
+        isPushedRef.current = false;
+        onClose();
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        // Eğer çekmece butonla (X vs.) kapandıysa history'deki yapay state'i geri al
+        if (isPushedRef.current && window.history.state?.modal === 'chat_drawer') {
+          isPushedRef.current = false;
+          window.history.back();
+        }
+      };
+    }
+  }, [isOpen, onClose]);
+
+  // Çekmece İçi Soldan Sağa Kaydırarak Kapatma (Swipe-to-Close Gesture)
+  const drawerTouchRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleDrawerTouchStart = (e: React.TouchEvent) => {
+    drawerTouchRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleDrawerTouchEnd = (e: React.TouchEvent) => {
+    if (!drawerTouchRef.current) return;
+    const dx = e.changedTouches[0].clientX - drawerTouchRef.current.x;
+    const dy = e.changedTouches[0].clientY - drawerTouchRef.current.y;
+    // Soldan sağa en az 60px kaydırma (ve yatay hareket dikey hareketten belirginse)
+    if (dx > 60 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      onClose();
+    }
+    drawerTouchRef.current = null;
+  };
   
   // Mesajlaşma State'leri
   const [inputText, setInputText] = useState('');
@@ -631,7 +680,11 @@ export default function ChatDrawer({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+        <div 
+          className="fixed inset-0 z-50 flex justify-end overflow-hidden"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           {/* Arka Plan Karartması */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -647,7 +700,9 @@ export default function ChatDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className={`relative z-10 w-full sm:max-w-md h-full flex flex-col border-l border-white/15 shadow-2xl backdrop-blur-2xl ${wallpaperStyles}`}
+            onTouchStart={handleDrawerTouchStart}
+            onTouchEnd={handleDrawerTouchEnd}
+            className={`relative z-10 w-full sm:max-w-md h-full flex flex-col border-l border-white/15 shadow-2xl backdrop-blur-2xl select-none ${wallpaperStyles}`}
             style={
               currentWallpaper === 'custom_photo' && customPhotoUrl
                 ? { backgroundImage: `linear-gradient(rgba(10,12,20,0.85), rgba(10,12,20,0.85)), url(${customPhotoUrl})` }
