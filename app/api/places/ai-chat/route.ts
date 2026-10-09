@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       ? `Kullanıcının anlık cihaz GPS koordinatları: Enlem ${userCoords.lat}, Boylam ${userCoords.lng}.`
       : `Kullanıcı henüz GPS konumu paylaşmadı.`;
 
-    const prompt = `Sen bir arkadaş grubunun dobra, açık sözlü ve nokta atışı tavsiye veren "Masa Gurmesi" yapay zekasısın.
+    const prompt = `Sen İstanbul mekanlarını ve gerçek şubelerini sokak sokak bilen, asılsız bilgi vermeyen uzman bir "Masa Gurmesi" yapay zekasısın.
 ${locationContext}
 
 KONUŞMA GEÇMİŞİ:
@@ -40,14 +40,16 @@ ${conversationHistory}
 KULLANICININ SON İSTEĞİ:
 "${cleanLastMessage || rawLastUserMessage}"
 
-KESİN KURALLAR:
-1. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme (Örn: Asla "Sur Yapı Lavender Sosyal Tesisi" veya site lokalleri gibi yerleri yazma).
-2. Yalnızca Google Haritalar'da resmi dükkan/işletme kaydı olan, herkesin kapıdan serbestçe girebileceği gerçek ticari mekanları öner.
-3. Eğer o semtte aranan kriterde yeterli mekan bulamazsan ASLA mekan uydurma; 'Bu semtte istediğin kritere uygun mekan sayısı çok kısıtlı, en yakın şu popüler noktaya bakabilirsin' de.
-4. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse:
+HAYALİ ŞUBE YASAĞI VE KESİN KURALLAR:
+1. Kullanıcının belirttiği ilçede/semtte FİZİKİ ŞUBESİ OLMAYAN popüler zincirleri (örn: Kronotrop, Petra, Federal, Montag vb.) ASLA o semtteymiş gibi uydurma!
+2. Yalnızca belirtilen ilçe sınırları içinde gerçek adresi, dükkanı ve tabelası olan işletmeleri (yerel butik kafeler veya o ilçede fiilen açılmış şubeler) seç.
+3. Örneğin Sancaktepe dendiğinde o semtte gerçekten bulunan yerleri (Brogg Coffee, Coffy, Cookienero, Coffee Venga, Roew Coffee, Rings AVM kafeleri vb.) getir. Olmayan bir markayı o ilçeye asla yapıştırma!
+4. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme.
+5. Eğer o semtte aranan kriterde yeterli mekan bulamazsan ASLA mekan uydurma; 'Bu semtte istediğin kritere uygun mekan sayısı çok kısıtlı, en yakın şu popüler noktaya bakabilirsin' de.
+6. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse:
    - "places" dizisini boş bırak ([]).
    - "text" alanında kısaca ve samimi bir dille hangi semtte olduğunu sor.
-5. Eğer semt ve istek belliyse, önerdiğin en fazla 3 gerçek ticari mekanı ve samimi 1-2 cümlelik yorumunu YALNIZCA geçerli bir JSON nesnesi olarak döndür:
+7. Eğer semt ve istek belliyse, önerdiğin en fazla 3 gerçek ticari mekanı ve samimi 1-2 cümlelik yorumunu YALNIZCA geçerli bir JSON nesnesi olarak döndür:
 
 \`\`\`json
 {
@@ -57,7 +59,7 @@ KESİN KURALLAR:
       "name": "Mekan Adı",
       "district": "Semt Adı",
       "rating": "4.4",
-      "summary": "Neden önerildiği ve ortamı hakkında 1 cümle",
+      "summary": "Neden önerildiği ve ortamı hakkında 1 kısa cümle",
       "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Mekan+Adi+Semt"
     }
   ]
@@ -65,14 +67,12 @@ KESİN KURALLAR:
 \`\`\`
 Sadece bu JSON formatında cevap ver.`;
 
-    console.log(`[Gemini AI Chat Call]: Prompt sent for: "${cleanLastMessage || rawLastUserMessage}"`);
+    console.log(`[Gemini AI Chat Safe Call]: Prompt sent for: "${cleanLastMessage || rawLastUserMessage}"`);
 
-    // 1. Sıcaklık ve model yapılandırması (Halüsinasyon engelleyici: temperature: 0.1, topP: 0.8)
     const modelsToTry = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
     let response: any;
     let lastError: any = null;
 
-    // Önce Search Grounding ile dene, kota (429) durumunda aynı sıcaklık ayarıyla direkt modele düş
     for (const modelName of modelsToTry) {
       try {
         try {
@@ -80,18 +80,17 @@ Sadece bu JSON formatında cevap ver.`;
             model: modelName,
             contents: prompt,
             config: {
-              temperature: 0.1,
+              temperature: 0.05,
               topP: 0.8,
               tools: [{ googleSearch: {} }]
             }
           });
         } catch (groundingErr: any) {
-          // Grounding kota sınırındaysa (429) halüsinasyonsuz katı model ile devam et
           response = await ai.models.generateContent({
             model: modelName,
             contents: prompt,
             config: {
-              temperature: 0.1,
+              temperature: 0.05,
               topP: 0.8
             }
           });
@@ -138,8 +137,8 @@ Sadece bu JSON formatında cevap ver.`;
               name: placeName,
               district: placeDistrict,
               rating: p.rating || '4.4',
-              reason: p.summary || p.reason || 'Tavsiye edilen gerçek ticari mekan.',
-              summary: p.summary || p.reason || 'Tavsiye edilen gerçek ticari mekan.',
+              reason: p.summary || p.reason || 'Tavsiye edilen gerçek mekan.',
+              summary: p.summary || p.reason || 'Tavsiye edilen gerçek mekan.',
               mapsUrl: mapsUrl,
               googleMapsUri: mapsUrl
             };

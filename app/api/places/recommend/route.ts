@@ -65,19 +65,23 @@ export async function POST(req: Request) {
       ? `Filtreler: ${filters.join(', ')}.`
       : '';
 
-    const prompt = `Sen İstanbul'un en popüler mekanlarını ezbere bilen uzman bir rehbersin.
+    const prompt = `Sen İstanbul'un tüm ilçelerini ve gerçek dükkanlarını sokak sokak bilen, asılsız bilgi vermeyen uzman bir rehbersin.
+Kullanıcının konumu: ${targetDistrict}.
 ${locationContext}
 ${filterContext}
 
 GÖREV:
-Kullanıcının konumu: ${targetDistrict}. Bu ilçede ve hemen bitişiğindeki popüler merkezlerde (cadde/AVM aksları) bulunan en iyi 4 adet ${cleanSearchQuery} mekanını listele.
+"${targetDistrict}" ilçesinde "${cleanSearchQuery}" kategorisinde gerçekten var olan en iyi 3-4 mekanı listele.
 
-KESİN KURALLAR:
-1. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme (Örn: Asla site lokalleri veya özel tesisleri yazma).
-2. Yalnızca Google Haritalar'da resmi dükkan/işletme kaydı olan, herkesin kapıdan serbestçe girebileceği gerçek ticari işletmeleri öner.
-3. Açıklamaları tek cümle tut, süreyi 2 saniyenin altında tut.
-4. ASLA uydurma mekan yazma, sadece bilinen gerçek ticari mekanları listele.
-5. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
+HAYALİ ŞUBE YASAĞI VE KESİN KURALLAR:
+1. Kullanıcının belirttiği ilçede/semtte (${targetDistrict}) FİZİKİ ŞUBESİ OLMAYAN popüler zincirleri (örn: Kronotrop, Petra, Federal, Montag vb.) ASLA o semtteymiş gibi uydurma!
+2. Yalnızca ${targetDistrict} sınırları içinde gerçek adresi, dükkanı ve tabelası olan işletmeleri (yerel butik kafeler veya o ilçede fiilen açılmış şubeler) seç.
+3. Örneğin Sancaktepe dendiğinde o semtte gerçekten bulunan yerleri (Brogg Coffee, Coffy, Cookienero, Coffee Venga, Roew Coffee, Rings AVM kafeleri vb.) getir. Olmayan bir markayı o ilçeye asla yapıştırma!
+4. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme.
+5. Eğer o semtte aranan konseptte mekan sayısı azsa, hayali marka uydurmak yerine o ilçedeki gerçek kaliteli işletmeleri listele.
+6. Açıklamaları tek kısa cümle yap, hızlıca JSON dön.
+
+Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
 
 \`\`\`json
 [
@@ -85,10 +89,10 @@ KESİN KURALLAR:
     "name": "Mekan Adı",
     "district": "${targetDistrict}",
     "address": "Açık adres veya semt detayı",
-    "rating": 4.6,
-    "review_count": 450,
+    "rating": 4.5,
+    "review_count": 350,
     "price_level": "$$",
-    "summary": "Mekan hakkında 1 cümlelik özet bilgi ve neden tercih edildiği",
+    "summary": "Neden önerildiği hakkında 1 kısa cümle",
     "isOpen": true,
     "parking_info": {
       "valet": false,
@@ -100,7 +104,7 @@ KESİN KURALLAR:
 \`\`\`
 `;
 
-    console.log(`[Gemini Ultra-Fast Call]: targetDistrict="${targetDistrict}", category="${cleanSearchQuery}"`);
+    console.log(`[Gemini Safe Call]: targetDistrict="${targetDistrict}", query="${cleanSearchQuery}"`);
 
     // Model önceliği: gemini-flash-lite-latest (taze kota & ultra hızlı), ardından gemini-flash-latest
     let response: any;
@@ -110,21 +114,23 @@ KESİN KURALLAR:
     for (const modelName of modelsToTry) {
       try {
         try {
+          // Önce Search Grounding dene
           response = await ai.models.generateContent({
             model: modelName,
             contents: prompt,
             config: {
-              temperature: 0.1,
+              temperature: 0.05,
               topP: 0.8,
               tools: [{ googleSearch: {} }]
             }
           });
         } catch (groundingErr: any) {
+          // Grounding kota sınırındaysa (429) katı sıcaklık ayarıyla direkt modele düş
           response = await ai.models.generateContent({
             model: modelName,
             contents: prompt,
             config: {
-              temperature: 0.1,
+              temperature: 0.05,
               topP: 0.8
             }
           });
