@@ -144,6 +144,7 @@ export async function DELETE(req: Request) {
             if (p.r2_file_key) {
               try {
                 await s3.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: p.r2_file_key }));
+                await s3.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: `thumbs/${p.r2_file_key}.webp` })).catch(() => {});
               } catch (e) {}
             }
             if (p.id) addDeletedPhotoId(p.id);
@@ -174,6 +175,10 @@ export async function DELETE(req: Request) {
           Key: fileKey,
         });
         await s3.send(deleteCommand);
+        await s3.send(new DeleteObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: `thumbs/${fileKey}.webp`,
+        })).catch(() => {});
       } catch (e) {
         console.warn("R2 fiziksel dosya silinirken uyarı:", e);
       }

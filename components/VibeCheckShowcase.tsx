@@ -87,20 +87,22 @@ export default function VibeCheckShowcase({
       ctx.fillText(`Saat: ${timeStr} • @${vibeCheck.initiated_by} Ateşledi`, 540, 280);
 
       // 3. Fotoğrafları Yükle ve Çiz
-      const loadedImages: HTMLImageElement[] = await Promise.all(
-        photos.slice(0, 6).map((photo) => {
-          return new Promise<HTMLImageElement>((resolve, reject) => {
+      const loadedImagesResults = await Promise.all(
+        photos.slice(0, 6).map((photo, i) => {
+          return new Promise<{ img: HTMLImageElement; photo: VibePhoto } | null>((resolve) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error('Görsel yüklenemedi'));
+            img.onload = () => resolve({ img, photo });
+            img.onerror = () => resolve(null);
             img.src = getMediaUrl(photo.r2_file_key);
           });
         })
       );
+      const validItems = loadedImagesResults.filter(Boolean) as { img: HTMLImageElement; photo: VibePhoto }[];
+      if (validItems.length === 0) throw new Error('Fotoğraflar indirilemedi');
 
       // Izgara Düzeni (Grid Layout)
-      const count = loadedImages.length;
+      const count = validItems.length;
       let rows = count <= 2 ? 1 : count <= 4 ? 2 : 3;
       let cols = count === 1 ? 1 : 2;
 
@@ -111,7 +113,7 @@ export default function VibeCheckShowcase({
       const cellW = (1080 - 80 - gap * (cols - 1)) / cols;
       const cellH = (gridHeight - gap * (rows - 1)) / rows;
 
-      loadedImages.forEach((img, idx) => {
+      validItems.forEach(({ img, photo: p }, idx) => {
         const col = idx % cols;
         const row = Math.floor(idx / cols);
 
@@ -150,7 +152,6 @@ export default function VibeCheckShowcase({
         ctx.restore();
 
         // Rozet ve Kullanıcı İsmi
-        const p = photos[idx];
         const isLate = p.is_late;
         const uploaderNick = p.uploaded_by.split('__')[0].replace(/^@/, '');
 

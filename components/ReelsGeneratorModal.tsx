@@ -572,6 +572,10 @@ export default function ReelsGeneratorModal({
     }
     return () => {
       stopPreview();
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
     };
   }, [isOpen, isLoadingImages, loadedImages, startPreview, stopPreview]);
 
@@ -859,23 +863,17 @@ export default function ReelsGeneratorModal({
                 <span className="text-[#CCFF00] font-black">10.0 Saniye</span>
               </div>
 
-              {/* Ritim Dalgası (Audio Waveform Peaks) */}
+              {/* Ritim Dalgası (Audio Waveform Peaks - CPU Dostu) */}
               <div className="flex items-center justify-between gap-1 h-6 px-1 py-0.5 bg-black/40 rounded-lg overflow-hidden">
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const isPeak = i % 4 === 0;
+                {Array.from({ length: 18 }).map((_, i) => {
+                  const isPeak = i % 3 === 0;
                   return (
-                    <motion.div
+                    <div
                       key={i}
-                      animate={{
-                        height: isPlaying ? (isPeak ? ['30%', '100%', '30%'] : ['15%', '60%', '15%']) : (isPeak ? '70%' : '30%'),
-                      }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 0.4 + (i % 3) * 0.1,
-                        ease: 'easeInOut',
-                      }}
-                      className={`flex-1 rounded-full ${
-                        isPeak ? 'bg-[#CCFF00]' : 'bg-neutral-600'
+                      className={`flex-1 rounded-full transition-all duration-300 ${
+                        isPlaying
+                          ? (isPeak ? 'bg-[#CCFF00] h-full animate-pulse' : 'bg-[#CCFF00]/60 h-3/5')
+                          : (isPeak ? 'bg-[#CCFF00]/40 h-1/2' : 'bg-white/20 h-1/4')
                       }`}
                     />
                   );

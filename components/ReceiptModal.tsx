@@ -212,7 +212,7 @@ export default function ReceiptModal({
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative z-10 w-full max-w-sm flex flex-col items-center my-auto"
+            className="relative z-10 w-full max-w-sm flex flex-col items-center my-auto py-12"
           >
             {/* KAPAT BUTONU */}
             <button

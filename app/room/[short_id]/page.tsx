@@ -2637,7 +2637,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="max-w-md mx-auto pointer-events-auto bg-[#12151F] md:bg-[#12151F]/95 md:backdrop-blur-sm border border-white/20 rounded-full px-3 py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-2"
+          className="max-w-xl mx-auto pointer-events-auto bg-[#12151F] md:bg-[#12151F]/95 md:backdrop-blur-sm border border-white/20 rounded-full px-2.5 sm:px-3 py-2 sm:py-2.5 shadow-[0_15px_50px_rgba(0,0,0,0.85)] flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar"
         >
           {/* Sol: İstatistikler */}
           <div className="pl-1 hidden sm:block shrink-0">

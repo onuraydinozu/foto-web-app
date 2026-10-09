@@ -107,6 +107,34 @@ export default function ChatDrawer({
     return globalAudioPlayer.subscribe('chat-drawer', setAudioPlayerState);
   }, []);
 
+  // Donanım & RAM Temizliği (Kamera, mikrofon ve sayaçları yalıt)
+  useEffect(() => {
+    if (!isOpen) {
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach((t) => t.stop());
+        videoStreamRef.current = null;
+      }
+      if (audioTimerRef.current) clearInterval(audioTimerRef.current);
+      if (videoTimerRef.current) clearInterval(videoTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      setIsRecordingAudio(false);
+      setIsVideoRecording(false);
+      setShowVideoModal(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach((t) => t.stop());
+        videoStreamRef.current = null;
+      }
+      if (audioTimerRef.current) clearInterval(audioTimerRef.current);
+      if (videoTimerRef.current) clearInterval(videoTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    };
+  }, []);
+
   // Bomba Mesaj Geri Sayımları (Okunduktan sonra 5 sn)
   const [burningBombIds, setBurningBombIds] = useState<Record<string, number>>({});
   const [revealedBombIds, setRevealedBombIds] = useState<Set<string>>(new Set());
@@ -967,7 +995,7 @@ export default function ChatDrawer({
             )}
 
             {/* ALT GİRDİ ÇUBUĞU (INPUT BAR) */}
-            <div className="p-3 sm:p-4 border-t border-white/10 bg-black/60 backdrop-blur-md shrink-0 space-y-2">
+            <div className="p-3 sm:p-4 border-t border-white/10 bg-black/60 backdrop-blur-md shrink-0 space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {isRecordingAudio ? (
                 // Ses Kaydı Canlı Barı
                 <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-red-950/60 border border-red-500/50">
@@ -1026,7 +1054,7 @@ export default function ChatDrawer({
                     value={inputText}
                     onChange={handleInputChange}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    className="flex-1 bg-black/50 border border-white/15 text-white placeholder:text-neutral-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-[#CCFF00] transition"
+                    className="flex-1 bg-black/50 border border-white/15 text-white placeholder:text-neutral-500 rounded-xl px-3.5 py-2.5 text-base sm:text-xs font-medium focus:outline-none focus:border-[#CCFF00] transition"
                   />
 
                   {/* GÖNDER BUTONU */}

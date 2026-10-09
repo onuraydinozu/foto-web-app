@@ -168,12 +168,14 @@ export async function POST(req: NextRequest) {
     // 1. Yeni Mesaj Gönder
     if (action === 'send_message') {
       const { channelId, senderName, text, mediaUrl, mediaType, isBomb, replyToPhotoId } = body;
+      const cleanSender = String(senderName || 'Anonim').trim().slice(0, 30);
+      const cleanText = String(text || '').slice(0, 1000);
 
       const newMsg = {
         id: crypto.randomUUID(),
         channel_id: channelId,
-        sender_name: senderName || 'Anonim',
-        text: text || '',
+        sender_name: cleanSender,
+        text: cleanText,
         media_url: mediaUrl || null,
         media_type: mediaType || 'text',
         is_bomb: Boolean(isBomb),
@@ -182,6 +184,9 @@ export async function POST(req: NextRequest) {
       };
 
       current.messages.push(newMsg);
+      if (current.messages.length > 500) {
+        current.messages = current.messages.slice(-500);
+      }
       await saveToStorage(roomId, current);
 
       // Supabase tablosuna da kaydetmeyi dene
