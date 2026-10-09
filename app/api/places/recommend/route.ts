@@ -4,6 +4,10 @@ import { GoogleGenAI } from '@google/genai';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
+// Sunucu Tarafı Bellek Önbelleği (15 Dakika)
+const placesCache = new Map<string, { data: any[]; expiry: number }>();
+const CACHE_TTL_MS = 15 * 60 * 1000;
+
 export async function POST(req: Request) {
   try {
     const { district, lat, lng, category, filters } = await req.json();
@@ -18,9 +22,23 @@ export async function POST(req: Request) {
       );
     }
 
+    const targetDistrict = district && district !== 'Anlık Konum' ? district : 'İstanbul';
+    const targetCategory = category || 'popüler yeme-içme mekanları';
+    const cacheKey = `${targetDistrict.trim().toLowerCase()}_${targetCategory.trim().toLowerCase()}`;
+
+    // 1. ÖNBELLEK KONTROLÜ (15 dakika içindeyse Gemini'ye istek atma)
+    const cachedEntry = placesCache.get(cacheKey);
+    if (cachedEntry && cachedEntry.expiry > Date.now() && cachedEntry.data.length > 0) {
+      console.log(`[Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan önbellekten döndürüldü.`);
+      return NextResponse.json({
+        success: true,
+        data: cachedEntry.data,
+        cached: true
+      });
+    }
+
     const ai = new GoogleGenAI({ apiKey });
 
-    const targetDistrict = district && district !== 'Anlık Konum' ? district : 'İstanbul';
     const hasGps = typeof lat === 'number' && typeof lng === 'number';
     const locationContext = hasGps
       ? `Kullanıcının anlık cihaz GPS koordinatları: Enlem ${lat}, Boylam ${lng}.`
@@ -30,15 +48,15 @@ export async function POST(req: Request) {
       ? `Kullanıcının seçtiği öncelikler: ${filters.join(', ')}.`
       : '';
 
-    const prompt = `Sen İstanbul'un en güncel ve güvenilir mekan rehberisin.
+    const prompt = `Sen İstanbul'un en güncel ve popüler mekan rehberisin.
 ${locationContext}
 ${filterContext}
 
 GÖREV:
-Google Search Grounding (Canlı Google Araması) aracını kullanarak "${targetDistrict}" bölgesinde "${category || 'popüler yeme-içme mekanları'}" için en iyi 4-5 gerçek, popüler ve şu an faal mekanı Google'da ara ve bul.
+"${targetDistrict}" bölgesinde "${targetCategory}" kategorisinde gidilebilecek en iyi 4 popüler, gerçek ve şu an aktif mekanı listele.
 
 KURALLAR:
-1. ASLA hafızandan veya hayal gücünden mekan uydurma. Yalnızca canlı Google aramasında karşına çıkan gerçek mekanları listele.
+1. ASLA hafızandan uydurma mekan yazma, yalnızca gerçek ve popüler mekanları listele.
 2. Mekanların Google Maps arama bağlantılarını doğru oluştur.
 3. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
 
@@ -63,7 +81,7 @@ KURALLAR:
 \`\`\`
 `;
 
-    console.log(`[Gemini Grounding Places Call]: targetDistrict="${targetDistrict}", category="${category}"`);
+    console.log(`[Gemini Grounding Places Call]: targetDistrict="${targetDistrict}", category="${targetCategory}"`);
 
     let response;
     try {
@@ -129,16 +147,36 @@ KURALLAR:
       }
     }
 
+    // 2. BAŞARILI SONUCU 15 DAKİKA ÖNBELLEĞE AL
+    if (places.length > 0) {
+      placesCache.set(cacheKey, {
+        data: places,
+        expiry: Date.now() + CACHE_TTL_MS
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: places,
-      message: places.length === 0 ? `Google canlı aramasında "${targetDistrict} - ${category}" için uygun mekan bulunamadı.` : undefined
+      message: places.length === 0 ? `"${targetDistrict} - ${targetCategory}" için mekan bulunamadı.` : undefined
     });
 
   } catch (error: any) {
     console.error('[Recommend API Fatal Error]:', error);
+
+    const errMsg = String(error?.message || '');
+    const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota');
+
+    // Eğer kota hatası alındıysa ve önbellekte eski veri varsa onu kurtarıcı olarak ver
+    if (isRateLimit) {
+      return NextResponse.json(
+        { error: '⚡ Radar biraz yoğun (dakikalık istek limiti)! Lütfen 30 saniye sonra tekrar deneyin.' },
+        { status: 429 }
+      );
+    }
+
     return NextResponse.json(
-      { error: error.message || 'Canlı mekan arama servisinde hata oluştu.' },
+      { error: errMsg || 'Canlı mekan arama servisinde hata oluştu.' },
       { status: 500 }
     );
   }

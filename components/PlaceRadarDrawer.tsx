@@ -91,13 +91,18 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isOpen, onClose]);
 
-  // Canlı Mekan Çekme Fonksiyonu
+  // Canlı Mekan Çekme Fonksiyonu (Çift istek kilidi ile korunur)
+  const isSearchingRef = useRef(false);
+
   const executeSearch = async (
     targetCat = category,
     targetDistrict = district,
     targetLoc = location,
     targetFilters = activeFilters
   ) => {
+    // İstek kilidi: Halihazırda istek devam ediyorsa ikinciyi engelle
+    if (isSearchingRef.current || loadingPlaces) return;
+    isSearchingRef.current = true;
     setLoadingPlaces(true);
     setErrorMessage(null);
 
@@ -122,25 +127,35 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
         }
       } else {
         setPlaces([]);
-        setErrorMessage(data.error || `Sunucu hatası (${res.status})`);
+        const rawErr = String(data.error || `Sunucu hatası (${res.status})`);
+        // 429 veya kota hatasında kullanıcı dostu mesaj göster
+        if (res.status === 429 || rawErr.includes('429') || rawErr.includes('RESOURCE_EXHAUSTED') || rawErr.includes('quota')) {
+          setErrorMessage('⚡ Radar biraz yoğun! Lütfen 30 saniye sonra tekrar deneyin.');
+        } else {
+          setErrorMessage(rawErr);
+        }
       }
     } catch (e: any) {
       console.error(e);
       setErrorMessage('Bağlantı hatası: Sunucuya ulaşılamadı.');
     } finally {
       setLoadingPlaces(false);
+      isSearchingRef.current = false;
     }
   };
 
-  // Açılışta veya sekme değişiminde ilk sorgu
+  // Açılışta veya sekme değişiminde ilk sorgu (yalnızca mekan yoksa tetikle)
   useEffect(() => {
     if (isOpen && activeTab === 'categories') {
-      executeSearch(category, district, location, activeFilters);
+      if (places.length === 0) {
+        executeSearch(category, district, location, activeFilters);
+      }
     }
   }, [isOpen, activeTab]);
 
   // Gerçek GPS Konumunu Al
   const handleGetLocation = () => {
+    if (loadingPlaces || isSearchingRef.current) return;
     if (!('geolocation' in navigator)) {
       alert('Cihazınızda veya tarayıcınızda GPS/Konum desteği bulunmuyor. Lütfen listeden semt seçin.');
       return;
@@ -167,21 +182,24 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
     );
   };
 
-  // Kategori Tıklandığında Anında Canlı Yenile
+  // Kategori Tıklandığında Anında Canlı Yenile (İstek kilidi kontrolü)
   const handleSelectCategory = (catId: string) => {
+    if (loadingPlaces || isSearchingRef.current || catId === category) return;
     setCategory(catId);
     executeSearch(catId, district, location, activeFilters);
   };
 
-  // Semt Değiştiğinde Anında Canlı Yenile
+  // Semt Değiştiğinde Anında Canlı Yenile (İstek kilidi kontrolü)
   const handleSelectDistrict = (d: string) => {
+    if (loadingPlaces || isSearchingRef.current || (d === district && !location)) return;
     setDistrict(d);
     setLocation(null); // GPS modundan çıkıp semt moduna geç
     executeSearch(category, d, null, activeFilters);
   };
 
-  // Filtre Değiştiğinde Canlı Yenile
+  // Filtre Değiştiğinde Canlı Yenile (İstek kilidi kontrolü)
   const toggleFilter = (fId: string) => {
+    if (loadingPlaces || isSearchingRef.current) return;
     const updated = activeFilters.includes(fId)
       ? activeFilters.filter(x => x !== fId)
       : [...activeFilters, fId];
@@ -445,9 +463,9 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                       ))}
                     </div>
                   ) : errorMessage ? (
-                    <div className="text-center py-6 px-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex flex-col items-center gap-2 font-medium">
-                      <AlertCircle className="w-5 h-5 text-red-400" />
-                      <span>{errorMessage}</span>
+                    <div className="text-center py-6 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-col items-center gap-2 font-medium">
+                      <Sparkles className="w-5 h-5 text-amber-400" />
+                      <span className="max-w-xs">{errorMessage}</span>
                     </div>
                   ) : places.length === 0 ? (
                     <div className="text-center py-8 text-neutral-500 text-sm">
