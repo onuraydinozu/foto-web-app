@@ -2463,25 +2463,25 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
         </div>
 
         {/* ========================================================
-            3. KAT: MASANIN ARAÇLARI (Yatay Kaydırılabilir Şerit / Horizontal Action Rail)
+            3. KAT: KAPSÜL DÜĞMELERİ (Mobilde Tam Görünür Izgara / Masaüstünde Esnek Şerit)
            ======================================================== */}
         <div className="rounded-2xl p-2.5 sm:p-3 bg-[#12151F]/60 border border-white/10 backdrop-blur-sm shadow-md space-y-2">
           <div className="flex items-center justify-between px-1">
             <span className="text-[11px] font-mono font-bold text-neutral-300 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
-              <span>MASANIN ARAÇLARI</span>
+              <span>KAPSÜL DÜĞMELERİ</span>
             </span>
             <span className="text-[10px] font-mono text-neutral-400">
-              Kaydır & Dokun ⚡
+              Hızlı Kontroller ⚡
             </span>
           </div>
 
-          {/* YATAY KAYDIRILABİLİR ARAÇ BUTONLARI (44px dokunma dostu butonlar) */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {/* DÜĞME IZGARASI (Mobilde alt alta 2-3 kolon ızgara, masaüstünde esnek şerit) */}
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-2 py-1">
             {/* 1. MÜZİK (YOUTUBE ŞARKI ARA & OYNAT) */}
             <button
               onClick={() => setShowYoutubeModal(true)}
-              className={`min-h-[44px] px-3.5 py-2 rounded-xl border transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 ${
+              className={`min-h-[44px] px-3 py-2 rounded-xl border transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 ${
                 room.spotify_url
                   ? 'bg-red-500/20 hover:bg-red-500/30 border-red-500/50 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
                   : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-200 hover:text-white'
@@ -2505,7 +2505,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
                   colors: ['#FFD700', '#CCFF00', '#FF2E93'],
                 });
               }}
-              className={`min-h-[44px] px-3.5 py-2 rounded-xl border transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 ${
+              className={`min-h-[44px] px-3 py-2 rounded-xl border transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 ${
                 isClosingSoon
                   ? 'bg-amber-500/25 border-amber-400 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)]'
                   : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-200 hover:text-white'
@@ -2526,7 +2526,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
                   colors: ['#000000', '#FFFFFF', '#CCFF00'],
                 });
               }}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/40 text-neutral-200 hover:text-white transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
+              className="min-h-[44px] px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/40 text-neutral-200 hover:text-white transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
             >
               <Receipt className="w-4 h-4 text-amber-300" />
               <span className="text-xs font-bold whitespace-nowrap">Fatura</span>
@@ -2535,18 +2535,18 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
             {/* 4. KATILIMCILAR */}
             <button
               onClick={() => setShowParticipantsModal(true)}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-[#FF2E93]/20 border border-white/10 hover:border-[#FF2E93]/40 text-neutral-200 hover:text-[#FF2E93] transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
+              className="min-h-[44px] px-3 py-2 rounded-xl bg-white/5 hover:bg-[#FF2E93]/20 border border-white/10 hover:border-[#FF2E93]/40 text-neutral-200 hover:text-[#FF2E93] transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
             >
               <Users className="w-4 h-4 text-[#FF2E93]" />
               <span className="text-xs font-bold whitespace-nowrap">
-                {allRoomParticipants.length > 0 ? `${allRoomParticipants.length} Katılımcı` : 'Katılımcılar'}
+                {allRoomParticipants.length > 0 ? `${allRoomParticipants.length} Kişi` : 'Katılımcılar'}
               </span>
             </button>
 
             {/* 5. QR KOD */}
             <button
               onClick={() => setShowQrModal(true)}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-white transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
+              className="min-h-[44px] px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-white transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
             >
               <QrCode className="w-4 h-4 text-[#CCFF00]" />
               <span className="text-xs font-bold whitespace-nowrap">QR Kod</span>
@@ -2556,7 +2556,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
             <button
               onClick={handleTriggerVibeCheck}
               disabled={isTriggeringVibe}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-red-600/15 hover:bg-red-600/30 border border-red-500/35 text-amber-300 transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              className="min-h-[44px] px-3 py-2 rounded-xl bg-red-600/15 hover:bg-red-600/30 border border-red-500/35 text-amber-300 transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
             >
               <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
               <span className="text-xs font-bold whitespace-nowrap">Vibe Check</span>
@@ -2566,7 +2566,7 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
             <button
               onClick={() => setShowReelsModal(true)}
               disabled={photos.length === 0}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-[#CCFF00]/15 border border-white/10 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-[#CCFF00] transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 disabled:opacity-30"
+              className="col-span-2 xs:col-span-1 sm:col-span-1 md:col-auto min-h-[44px] px-3 py-2 rounded-xl bg-white/5 hover:bg-[#CCFF00]/15 border border-white/10 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-[#CCFF00] transition flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 disabled:opacity-30"
             >
               <Film className="w-4 h-4 text-[#CCFF00]" />
               <span className="text-xs font-bold whitespace-nowrap">10s Klip</span>
