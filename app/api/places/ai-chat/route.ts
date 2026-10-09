@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30; // Vercel Serverless Function süresi 30 saniye
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
@@ -10,7 +10,6 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    // 1. API Anahtarı Kontrolü
     if (!apiKey) {
       console.error('[Gemini AI]: GEMINI_API_KEY çevre değişkeni bulunamadı!');
       return NextResponse.json(
@@ -21,13 +20,11 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Son kullanıcı mesajı ve mesaj geçmişi
     const conversationHistory = (messages || [])
       .map((m: any) => `${m.role === 'user' ? 'Kullanıcı' : 'Gurme'}: ${m.content}`)
       .join('\n');
 
     const rawLastUserMessage = messages?.filter((m: any) => m.role === 'user')?.pop()?.content || '';
-    // Emojileri temizle (Örn: "🚗 Parkı Kolay Mekan" -> "Parkı Kolay Mekan")
     const cleanLastMessage = rawLastUserMessage.replace(/[\u{1F300}-\u{1FAFF}|\u{2600}-\u{27BF}]/gu, '').trim();
 
     const locationContext = userCoords?.lat && userCoords?.lng
@@ -44,10 +41,10 @@ KULLANICININ SON İSTEĞİ:
 "${cleanLastMessage || rawLastUserMessage}"
 
 GÖREVİN VE KURALLAR:
-1. Çok hızlı ve net cevap ver (3 saniyenin altında). Google Search Grounding aracını kullanarak kullanıcının istediği semtteki gerçek, canlı ve açık mekanları bul.
-2. ASLA hafızandan veya hayal gücünden mekan uydurma. Gerçek mekanları listele.
-3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse, arama yapmadan önce kısaca samimi bir dille hangi semtte olduğunu sor.
-4. Eğer semt ve istek belliyse, bulduğun gerçek mekanları (en fazla 3 mekan) aşağıdaki JSON formatında bir kod bloğu (\`\`\`json ... \`\`\`) olarak cevabının sonuna iliştir:
+1. Çok hızlı ve dobra cevap ver (2 saniyenin altında). Kullanıcının istediği semtteki gerçek mekanları hafızandan listele.
+2. ASLA hafızandan uydurma mekan yazma. Sadece gerçek ve bilinen popüler mekanları listele.
+3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse, kısaca samimi bir dille hangi semtte olduğunu sor.
+4. Eğer semt ve istek belliyse, önerdiğin gerçek mekanları (en fazla 3 mekan) aşağıdaki JSON formatında bir kod bloğu (\`\`\`json ... \`\`\`) olarak cevabının sonuna iliştir:
 
 \`\`\`json
 [
@@ -61,39 +58,34 @@ GÖREVİN VE KURALLAR:
 ]
 \`\`\`
 
-5. JSON bloğunun üstünde ise arkadaşına anlatır gibi dobra, 2-3 cümlelik samimi yorumunu yap. Giriş tekerlemesi veya robotik kurumsal nezaket cümleleri kurma.`;
+5. JSON bloğunun üstünde arkadaşına anlatır gibi dobra, 2-3 cümlelik samimi yorumunu yap. Robotik kurumsal nezaket cümleleri kurma.`;
 
-    console.log(`[Gemini Grounding Call]: Prompt sending to gemini-flash-latest with tools: [{ googleSearch: {} }]`);
+    console.log(`[Gemini AI Chat Call]: Prompt sent for: "${cleanLastMessage || rawLastUserMessage}"`);
 
-    // 2. TIMEOUT KORUMALI ÇAĞRI (504 Timeout engellemek için 5s yarış)
+    // 2. YEDEK MODELLERLE ÇAĞRI (503 High Demand ve 429 için otomatik fallback)
     let response: any;
-    try {
-      const groundingPromise = ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
-      });
+    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.8-flash'];
+    let lastError: any = null;
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('AI_CHAT_TIMEOUT')), 5000)
-      );
+    for (const modelName of modelsToTry) {
+      try {
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt
+        });
+        if (response?.text) break;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[Gemini Chat Retry]: ${modelName} başarısız oldu (${err.message?.slice(0, 80)}), yedek modele geçiliyor...`);
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
 
-      response = await Promise.race([groundingPromise, timeoutPromise]);
-    } catch (groundingErr: any) {
-      console.warn('[Gemini AI Grounding Warning]: Grounding yavaş kaldı veya hata verdi, hızlı direkt modele geçiliyor:', groundingErr.message);
-      // Hızlı direkt model çağrısı (1.5-2 saniyede döner, 504 riskini sıfırlar)
-      response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt
-      });
+    if (!response?.text && lastError) {
+      throw lastError;
     }
 
     const fullText = response?.text || '';
-    console.log(`[Gemini Response]: Length = ${fullText.length}`);
-
-    // 3. JSON Mekan Kartlarını Ayıkla
     let places: any[] = [];
     let cleanContent = fullText;
     let jsonString = '';
@@ -115,7 +107,7 @@ GÖREVİN VE KURALLAR:
         const parsed = JSON.parse(jsonString);
         if (Array.isArray(parsed)) {
           places = parsed.map((p: any, idx: number) => ({
-            place_id: `gemini_ground_${Date.now()}_${idx}`,
+            place_id: `gemini_chat_${Date.now()}_${idx}`,
             name: p.name || 'Mekan',
             district: p.district || '',
             rating: p.rating || '4.5',
@@ -130,22 +122,15 @@ GÖREVİN VE KURALLAR:
     }
 
     return NextResponse.json({
-      content: cleanContent || 'İşte canlı aramada bulduğum mekanlar:',
+      content: cleanContent || 'İşte tavsiye ettiğim mekanlar:',
       places
     });
 
   } catch (error: any) {
-    console.error('[Gemini AI Grounding Fatal Error]:', error);
-    const errMsg = String(error?.message || '');
-    if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
-      return NextResponse.json(
-        { error: '⚡ Gurme biraz yoğun! Lütfen 30 saniye sonra tekrar deneyin.' },
-        { status: 429 }
-      );
-    }
+    console.error('[Gemini AI Chat Fatal Error]:', error);
     return NextResponse.json(
-      { error: errMsg || 'Gemini yapay zeka servisinde bir hata oluştu.' },
-      { status: 500 }
+      { error: '⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?' },
+      { status: 503 }
     );
   }
 }

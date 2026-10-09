@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30; // Vercel Serverless Function süresi 30 saniye
+export const maxDuration = 30;
 
 // Sunucu Tarafı Bellek Önbelleği (15 Dakika)
 const placesCache = new Map<string, { data: any[]; expiry: number }>();
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     if (!apiKey) {
       console.error('[Gemini AI]: GEMINI_API_KEY bulunamadı!');
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY eksik! Lütfen Vercel veya .env.local ortam değişkenlerine ekleyin.' },
+        { error: 'GEMINI_API_KEY eksik! Lütfen Vercel ortam değişkenlerine ekleyin.' },
         { status: 500 }
       );
     }
@@ -43,10 +43,10 @@ export async function POST(req: Request) {
     const cleanSearchQuery = getCleanCategoryQuery(targetDistrict, category);
     const cacheKey = `${targetDistrict.trim().toLowerCase()}_${cleanSearchQuery.trim().toLowerCase()}`;
 
-    // 1. ÖNBELLEK KONTROLÜ (15 dakika içindeyse Gemini'ye istek atma)
+    // 1. ÖNBELLEK KONTROLÜ (15 dakika içindeyse anında dön)
     const cachedEntry = placesCache.get(cacheKey);
     if (cachedEntry && cachedEntry.expiry > Date.now() && cachedEntry.data.length > 0) {
-      console.log(`[Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan anında önbellekten döndürüldü.`);
+      console.log(`[Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan önbellekten döndürüldü.`);
       return NextResponse.json({
         success: true,
         data: cachedEntry.data,
@@ -58,24 +58,24 @@ export async function POST(req: Request) {
 
     const hasGps = typeof lat === 'number' && typeof lng === 'number';
     const locationContext = hasGps
-      ? `Kullanıcının anlık cihaz GPS koordinatları: Enlem ${lat}, Boylam ${lng}.`
-      : `Kullanıcı semt olarak "${targetDistrict}" seçti.`;
+      ? `Kullanıcının GPS koordinatları: ${lat}, ${lng}.`
+      : `Bölge: "${targetDistrict}".`;
 
     const filterContext = Array.isArray(filters) && filters.length > 0
-      ? `Kullanıcının tercihleri: ${filters.join(', ')}.`
+      ? `Filtreler: ${filters.join(', ')}.`
       : '';
 
-    const prompt = `Sen İstanbul'un en hızlı ve nokta atışı mekan rehberisin.
+    const prompt = `Sen İstanbul'un en popüler mekanlarını ezbere bilen uzman bir rehbersin.
 ${locationContext}
 ${filterContext}
 
 GÖREV:
-"${cleanSearchQuery}" araması için en popüler, gerçek ve şu an açık en iyi 3-4 mekanı belirle.
+"${targetDistrict}" bölgesinde "${cleanSearchQuery}" kategorisinde en bilinen, yüksek puanlı ve popüler 4 gerçek mekanı listele.
 
-HIZ VE FORMAT KURALLARI:
-1. Çok hızlı ve özet cevap ver. Google'da derinlemesine araştırma yapmak yerine en popüler ilk 3-4 mekanı al.
-2. Açıklamaları tek cümle tut ve süreyi 3 saniyenin altında tut.
-3. ASLA uydurma mekan yazma, gerçek mekanları listele.
+KURALLAR:
+1. Web araması yapma, doğrudan hafızandaki gerçek mekanları getir.
+2. Açıklamaları tek cümle tut, süreyi 2 saniyenin altında tut.
+3. ASLA uydurma mekan yazma, sadece bilinen gerçek mekanları listele.
 4. Sonuçları YALNIZCA aşağıdaki JSON formatında, bir kod bloğu (\`\`\`json ... \`\`\`) içinde döndür:
 
 \`\`\`json
@@ -99,32 +99,30 @@ HIZ VE FORMAT KURALLARI:
 \`\`\`
 `;
 
-    console.log(`[Gemini Fast Search Call]: query="${cleanSearchQuery}"`);
+    console.log(`[Gemini Ultra-Fast Call]: targetDistrict="${targetDistrict}", category="${cleanSearchQuery}"`);
 
-    // 2. TIMEOUT KORUMALI ÇAĞRI (504 Timeout'u engellemek için 4.5s yarış)
+    // 2. ULTRA-HIZLI ÇAĞRI + 503 / RATE LIMIT İÇİN YEDEK MODEL VE RETRY
     let response: any;
-    try {
-      const groundingPromise = ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
-      });
+    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.8-flash'];
+    let lastError: any = null;
 
-      // 4.5 saniyeden uzun sürerse doğrudan modele düş (504 Timeout engelleme)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('GROUNDING_TIMEOUT')), 4500)
-      );
+    for (const modelName of modelsToTry) {
+      try {
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt
+        });
+        if (response?.text) break; // Başarılıysa döngüden çık
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[Gemini Retry]: ${modelName} başarısız oldu (${err.message?.slice(0, 80)}), yedek modele geçiliyor...`);
+        // 300ms minik bekleme ile sonraki modele geç
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
 
-      response = await Promise.race([groundingPromise, timeoutPromise]);
-    } catch (err: any) {
-      console.warn('[Gemini Speed Optimization]: Grounding yavaş kaldı veya hata verdi, hızlı direkt modele geçildi:', err.message);
-      // Hızlı direkt model çağrısı (1.5-2 saniyede döner)
-      response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt
-      });
+    if (!response?.text && lastError) {
+      throw lastError;
     }
 
     const fullText = response?.text || '';
@@ -151,7 +149,7 @@ HIZ VE FORMAT KURALLARI:
             const mapsUrl = p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + placeDistrict)}`;
 
             return {
-              place_id: `gemini_rec_${Date.now()}_${idx}`,
+              place_id: `rec_${Date.now()}_${idx}`,
               name: placeName,
               district: placeDistrict,
               address: p.address || `${placeDistrict}, İstanbul`,
@@ -169,7 +167,7 @@ HIZ VE FORMAT KURALLARI:
           });
         }
       } catch (parseErr) {
-        console.error('Failed to parse places JSON from Gemini response:', parseErr);
+        console.error('Failed to parse places JSON:', parseErr);
       }
     }
 
@@ -189,20 +187,10 @@ HIZ VE FORMAT KURALLARI:
 
   } catch (error: any) {
     console.error('[Recommend API Fatal Error]:', error);
-
-    const errMsg = String(error?.message || '');
-    const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota');
-
-    if (isRateLimit) {
-      return NextResponse.json(
-        { error: '⚡ Radar biraz yoğun! Lütfen 30 saniye sonra tekrar deneyin.' },
-        { status: 429 }
-      );
-    }
-
+    // Asla ham teknik JSON dönme
     return NextResponse.json(
-      { error: errMsg || 'Canlı mekan arama servisinde hata oluştu.' },
-      { status: 500 }
+      { error: '⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?' },
+      { status: 503 }
     );
   }
 }

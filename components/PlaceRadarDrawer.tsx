@@ -128,16 +128,25 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       } else {
         setPlaces([]);
         const rawErr = String(data.error || `Sunucu hatası (${res.status})`);
-        // 429 veya kota hatasında kullanıcı dostu mesaj göster
-        if (res.status === 429 || rawErr.includes('429') || rawErr.includes('RESOURCE_EXHAUSTED') || rawErr.includes('quota')) {
-          setErrorMessage('⚡ Radar biraz yoğun! Lütfen 30 saniye sonra tekrar deneyin.');
+        if (
+          res.status === 503 ||
+          res.status === 504 ||
+          res.status === 429 ||
+          rawErr.includes('503') ||
+          rawErr.includes('504') ||
+          rawErr.includes('429') ||
+          rawErr.includes('RESOURCE_EXHAUSTED') ||
+          rawErr.includes('quota') ||
+          rawErr.includes('High Demand')
+        ) {
+          setErrorMessage('⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?');
         } else {
           setErrorMessage(rawErr);
         }
       }
     } catch (e: any) {
       console.error(e);
-      setErrorMessage('Bağlantı hatası: Sunucuya ulaşılamadı.');
+      setErrorMessage('⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?');
     } finally {
       setLoadingPlaces(false);
       isSearchingRef.current = false;
@@ -248,12 +257,17 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
         }
       ]);
     } catch (err: any) {
+      const errMsg = String(err?.message || '');
+      let friendlyText = '⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?';
+      if (!errMsg.includes('503') && !errMsg.includes('504') && !errMsg.includes('429') && !errMsg.includes('fetch') && !errMsg.includes('{')) {
+        friendlyText = err.message || friendlyText;
+      }
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `⚠️ ${err.message || 'Bağlantı hatası oluştu.'}`,
+          content: friendlyText,
           places: []
         }
       ]);
