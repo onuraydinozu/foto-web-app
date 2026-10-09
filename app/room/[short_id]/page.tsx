@@ -13,7 +13,7 @@ import {
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
   Music, Check, UploadCloud, Flame, Camera, Users, Trophy,
   Trash2, CheckSquare, Square, FileDown, Layers,
-  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare, Receipt
+  Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare, Receipt, Film
 } from 'lucide-react';
 import exifr from 'exifr';
 import AuthModal from '@/components/AuthModal';
@@ -22,6 +22,7 @@ import YoutubePlayer from '@/components/YoutubePlayer';
 import SwipeCuratorModal from '@/components/SwipeCuratorModal';
 import ChatDrawer from '@/components/ChatDrawer';
 import ReceiptModal from '@/components/ReceiptModal';
+import ReelsGeneratorModal from '@/components/ReelsGeneratorModal';
 import VibeCheckAlert, { playVibeCheckAudio } from '@/components/VibeCheckAlert';
 import VibeCheckShowcase from '@/components/VibeCheckShowcase';
 import SelfieReactionModal, { SelfieReactionPayload } from '@/components/SelfieReactionModal';
@@ -312,6 +313,7 @@ export default function RoomPage() {
   const [showRecapModal, setShowRecapModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showSwipeModal, setShowSwipeModal] = useState(false);
+  const [showReelsModal, setShowReelsModal] = useState(false);
   const [isClosingSoon, setIsClosingSoon] = useState(false);
 
   // Offline Desteği (IndexedDB Kuyruk Durumu)
@@ -2379,7 +2381,17 @@ export default function RoomPage() {
                     className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition disabled:opacity-40 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>Ekstra: ZIP İndir</span>
+                    <span>Ekstra: ZIP</span>
+                  </button>
+
+                  {/* 3. SEÇİLENLERLE 10S VİDEO YAP */}
+                  <button
+                    onClick={() => setShowReelsModal(true)}
+                    disabled={selectedIds.size === 0}
+                    className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-[#CCFF00]/20 hover:from-emerald-500/30 hover:to-[#CCFF00]/30 border border-[#CCFF00]/40 text-[#CCFF00] font-bold text-xs flex items-center gap-1.5 transition disabled:opacity-40 cursor-pointer"
+                  >
+                    <Film className="w-3.5 h-3.5" />
+                    <span>🎬 Video Yap</span>
                   </button>
                 </div>
               </motion.div>
@@ -2834,6 +2846,20 @@ export default function RoomPage() {
               className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-tr from-orange-500/25 to-pink-500/25 hover:from-orange-500/40 hover:to-pink-500/40 border border-orange-500/40 text-orange-400 flex items-center justify-center transition cursor-pointer shadow-sm disabled:opacity-30 shrink-0"
             >
               <Flame className="w-4 h-4 sm:w-5 sm:h-5 fill-orange-400" />
+            </motion.button>
+
+            {/* 10S REELS / VIDEO ÖZETİ BUTONU */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowReelsModal(true)}
+              disabled={photos.length === 0}
+              title="🎬 10s Beat-Sync TikTok / Reels Özeti Yap"
+              className="flex items-center gap-1 px-3 py-2.5 sm:px-3.5 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-500/25 to-[#CCFF00]/25 hover:from-emerald-500/40 hover:to-[#CCFF00]/40 border border-[#CCFF00]/40 text-[#CCFF00] font-black text-xs sm:text-sm transition cursor-pointer shadow-sm shrink-0 disabled:opacity-30"
+            >
+              <Film className="w-4 h-4 text-[#CCFF00]" />
+              <span className="hidden sm:inline">10s Klip</span>
+              <span className="sm:hidden">Klip</span>
             </motion.button>
 
             {/* SES KAYDET BUTONU */}
@@ -3640,6 +3666,28 @@ export default function RoomPage() {
                     </p>
                   </div>
                 </button>
+
+                {/* 3. SEÇENEK: 10S REELS / TIKTOK BEAT-SYNC VİDEO ÖZETİ */}
+                <button
+                  onClick={() => {
+                    setShowBulkDownloadModal(false);
+                    setShowReelsModal(true);
+                  }}
+                  className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-[#CCFF00]/10 hover:from-emerald-500/20 hover:to-[#CCFF00]/20 border border-[#CCFF00]/40 text-left flex items-start gap-3 transition cursor-pointer group shadow-[0_0_20px_rgba(204,255,0,0.1)]"
+                >
+                  <div className="p-2.5 rounded-xl bg-[#CCFF00]/15 border border-[#CCFF00]/30 text-[#CCFF00] group-hover:scale-110 transition shrink-0">
+                    <Film className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                      🎬 10s Beat-Sync Video Özeti (Reels / TikTok)
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#CCFF00] text-black font-black uppercase">Yeni</span>
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+                      Kareleri ritme göre flaş ve zoom efektleriyle kesip 10 saniyelik dikey MP4 klibe dönüştürür.
+                    </p>
+                  </div>
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -3863,6 +3911,19 @@ export default function RoomPage() {
         reactions={reactions}
         spotifyUrl={room?.spotify_url}
         parsePhotoUploader={parsePhotoUploader}
+      />
+
+      {/* 10S BEAT-SYNC REELS / TIKTOK VİDEO MODALI */}
+      <ReelsGeneratorModal
+        isOpen={showReelsModal}
+        onClose={() => setShowReelsModal(false)}
+        photos={selectedIds.size > 0 ? photos.filter((p) => selectedIds.has(p.id)) : photos}
+        capsuleName={capsuleName}
+        roomShortId={room?.short_id || params.short_id}
+        participants={allRoomParticipants}
+        getMediaUrl={getMediaUrl}
+        reactions={reactions}
+        location={room?.location || undefined}
       />
 
       {/* CANLI YÜZ REAKSİYONU (LOCKET STYLE SELFIE MODAL) */}
