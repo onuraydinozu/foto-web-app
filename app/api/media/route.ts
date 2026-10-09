@@ -21,14 +21,35 @@ export async function GET(request: NextRequest) {
     }
 
     const rangeHeader = request.headers.get("range");
+    const isThumb = searchParams.get("thumb") === "1" || searchParams.get("thumb") === "true";
 
-    const command = new GetObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME!,
-      Key: key,
-      ...(rangeHeader ? { Range: rangeHeader } : {}),
-    });
+    let targetKey = key;
+    let s3Response: any = null;
 
-    const s3Response = await s3.send(command);
+    // Eğer thumbnail talep edildiyse, önce thumbs/ ön eki ile hafif WebP kopyayı dene
+    if (isThumb) {
+      try {
+        const thumbKey = `thumbs/${key}.webp`;
+        const thumbCommand = new GetObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME!,
+          Key: thumbKey,
+        });
+        s3Response = await s3.send(thumbCommand);
+        targetKey = thumbKey;
+      } catch (thumbErr) {
+        // Thumbnail henüz yoksa orijinal dosyaya düş
+        s3Response = null;
+      }
+    }
+
+    if (!s3Response) {
+      const command = new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: key,
+        ...(rangeHeader ? { Range: rangeHeader } : {}),
+      });
+      s3Response = await s3.send(command);
+    }
 
     if (!s3Response.Body) {
       return new NextResponse("Not found", { status: 404 });

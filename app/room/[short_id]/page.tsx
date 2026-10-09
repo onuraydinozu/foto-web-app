@@ -29,6 +29,8 @@ import SelfieReactionModal, { SelfieReactionPayload } from '@/components/SelfieR
 import SelfieReactionStack, { SelfieReactionItem } from '@/components/SelfieReactionStack';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
 import { globalAudioPlayer } from '@/lib/audioPlayer';
+import CountdownTimer from '@/components/CountdownTimer';
+import PhotoCard from '@/components/PhotoCard';
 
 
 // ==========================================
@@ -233,7 +235,6 @@ export default function RoomPage() {
   const [roomUrl, setRoomUrl] = useState('');
   const [showQrModal, setShowQrModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
-  const [timeLeft, setTimeLeft] = useState('47:59:59');
   const [isExpired, setIsExpired] = useState(false);
   const [hasPurgedExpired, setHasPurgedExpired] = useState(false);
   const [dismissWarning, setDismissWarning] = useState(false);
@@ -698,11 +699,11 @@ export default function RoomPage() {
     } catch (err) {}
   };
 
-  // Dinamik Geri Sayım, Silinme Öncesi Uyarı & Otomatik Silme
+  // Silinme Öncesi Uyarı & Otomatik Silme Kontrolü (Düşük frekanslı, 60 saniyede bir kontrol edilir)
   useEffect(() => {
     if (!room?.created_at) return;
 
-    const interval = setInterval(() => {
+    const checkExpiration = () => {
       const created = new Date(room.created_at).getTime();
       const isLegacy = created < new Date('2026-10-08T12:49:00Z').getTime();
       const expires = !isLegacy && room.upload_locked_at
@@ -710,15 +711,7 @@ export default function RoomPage() {
         : created + 48 * 60 * 60 * 1000;
       const diff = expires - Date.now();
 
-      // Süresiz Kontrolü (100 yıl)
-      if (diff > 10 * 365 * 24 * 3600 * 1000) {
-        setTimeLeft('Süresiz ♾️');
-        clearInterval(interval);
-        return;
-      }
-
       if (diff <= 0) {
-        setTimeLeft('00:00:00 (SÜRE DOLDU)');
         setIsExpired(true);
         if (!hasPurgedExpired) {
           setHasPurgedExpired(true);
@@ -729,13 +722,10 @@ export default function RoomPage() {
           }).catch(() => {});
           setPhotos([]);
         }
-        clearInterval(interval);
         return;
       }
 
-      // Kapsülün toplam ömrü ve uyarı eşiği
       const totalDurationMs = expires - created;
-      // 1 hafta (168h) için son 24 saat, 48h için son 3 saat, 24h için son 2 saat kala uyarı ver
       const warningThreshold = totalDurationMs > 48 * 3600 * 1000 
         ? 24 * 3600 * 1000 
         : totalDurationMs > 24 * 3600 * 1000 
@@ -745,20 +735,10 @@ export default function RoomPage() {
       if (diff <= warningThreshold && diff > 0) {
         setIsClosingSoon(true);
       }
+    };
 
-      const totalHours = Math.floor(diff / (1000 * 60 * 60));
-      const days = Math.floor(totalHours / 24);
-      const hours = totalHours % 24;
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      if (days > 0) {
-        setTimeLeft(`${days}g ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-      } else {
-        setTimeLeft(`${String(totalHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-      }
-    }, 1000);
-
+    checkExpiration();
+    const interval = setInterval(checkExpiration, 60000);
     return () => clearInterval(interval);
   }, [room?.created_at, room?.upload_locked_at, hasPurgedExpired]);
 
@@ -1035,6 +1015,45 @@ export default function RoomPage() {
     return () => window.removeEventListener('online', handleOnline);
   }, [room?.id, params.short_id]);
 
+// ==========================================
+// CLIENT-SIDE THUMBNAIL MOTORU (<Canvas> 400px WebP, ~35 KB)
+// ==========================================
+async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | null> {
+  if (!file.type.startsWith('image/')) return null;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      let w = img.width;
+      let h = img.height;
+      if (w > h) {
+        if (w > maxDim) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        }
+      } else {
+        if (h > maxDim) {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(null);
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.78);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
   // Doğrudan Fotoğraf / Video Yükleme
   const processFiles = async (fileList: FileList | File[]) => {
     if (storageStats.isExceeded) {
@@ -1116,6 +1135,7 @@ export default function RoomPage() {
         if (!res.ok) throw new Error('Pre-signed URL alınamadı');
         const { url } = await res.json();
 
+        // Orijinal dosyayı kayıpsız yükle (100% full kalite)
         const uploadRes = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': file.type || 'image/jpeg' },
@@ -1123,6 +1143,35 @@ export default function RoomPage() {
         });
 
         if (!uploadRes.ok) throw new Error('R2 Yükleme Hatası');
+
+        // Hafif WebP Thumbnail üret ve R2'ye yükle (thumbs/ altına ~35 KB)
+        if (file.type.startsWith('image/')) {
+          try {
+            const thumbBlob = await createThumbnailBlob(file, 400);
+            if (thumbBlob) {
+              const thumbKey = `thumbs/${fileKey}.webp`;
+              const thumbRes = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  filename: thumbKey,
+                  contentType: 'image/webp',
+                  fileSize: thumbBlob.size,
+                }),
+              });
+              if (thumbRes.ok) {
+                const { url: thumbPutUrl } = await thumbRes.json();
+                await fetch(thumbPutUrl, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'image/webp' },
+                  body: thumbBlob,
+                });
+              }
+            }
+          } catch (tErr) {
+            console.warn('Thumbnail generation skipped:', tErr);
+          }
+        }
 
         let vibeTag = '';
         let isLate = false;
@@ -1429,7 +1478,11 @@ export default function RoomPage() {
     }
   };
 
-  const getMediaUrl = (fileKey: string) => `/api/media?key=${encodeURIComponent(fileKey)}`;
+  const getMediaUrl = (fileKey: string, options?: { thumb?: boolean }) => {
+    const base = `/api/media?key=${encodeURIComponent(fileKey)}`;
+    if (options?.thumb) return `${base}&thumb=1`;
+    return base;
+  };
 
   // Tekil Orijinal İndir (ZIP'siz - Kayıpsız JPEG/PNG)
   const downloadSingleFile = (fileKey: string, originalName: string, e?: React.MouseEvent) => {
@@ -2115,10 +2168,12 @@ export default function RoomPage() {
                 <span>{room.short_id}</span>
               </motion.button>
               
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FF2E93]/15 border border-[#FF2E93]/35 text-[#FF2E93] text-[10px] sm:text-xs font-mono font-black shrink-0">
-                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>{timeLeft}</span>
-              </div>
+              <CountdownTimer
+                createdAt={room?.created_at}
+                uploadLockedAt={room?.upload_locked_at}
+                roomId={room?.id}
+                onExpire={() => setIsExpired(true)}
+              />
             </div>
 
             <motion.button
@@ -2492,98 +2547,35 @@ export default function RoomPage() {
                MODERN POLAROID GRID (ZAMAN TÜNELİ DİZİLİMİ - DÜZGÜN & HİZALI)
                ======================================================== */
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-6">
-              {photos.map((photo, index) => {
+              {photos.map((photo) => {
                 const photoReactions = reactions[photo.id] || [];
                 const timeString = photo.taken_at
                   ? new Date(photo.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   : 'Şimdi';
                 
-                const isVoice = /\.(webm|mp3|wav|ogg|m4a)$/i.test(photo.original_name || photo.r2_file_key);
-                const isVideo = !isVoice && /\.(mp4|webm|mov|m4v)$/i.test(photo.original_name || photo.r2_file_key);
                 const isSelected = selectedIds.has(photo.id);
                 const isOwner = checkIsOwner(photo.uploaded_by, photo.id);
+                const isCover = photo.id === coverPhoto?.id && reactions[coverPhoto.id]?.length > 0;
+                const parsed = parsePhotoUploader(photo.uploaded_by);
+                const dev = parsed.device || deviceMap[photo.id];
+                const deviceBadge = getDeviceBadge(dev, photo.taken_at || photo.created_at);
 
-                // 1. SESLİ ANI KARTI (RETRO KASET / AUDIO PLAYER)
-                if (isVoice) {
-                  return (
-                    <motion.div
-                      key={photo.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="relative rounded-3xl p-4 sm:p-5 bg-gradient-to-br from-[#1A162B] to-[#12151F] border border-[#7928CA]/40 shadow-xl space-y-3 col-span-2 sm:col-span-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#7928CA]/30 text-violet-300 border border-[#7928CA]/40 flex items-center gap-1">
-                          <Radio className="w-3 h-3 text-[#CCFF00] animate-pulse" /> SESLİ DUMP
-                        </span>
-                        <span className="font-mono text-[10px] text-neutral-400">{timeString}</span>
-                      </div>
-
-                      {/* Ses Çalma Butonu & Dalga Animasyonu */}
-                      <div className="flex items-center gap-3 py-2">
-                        <button
-                          onClick={() => globalAudioPlayer.toggle(photo.id, getMediaUrl(photo.r2_file_key))}
-                          className="w-12 h-12 rounded-full bg-[#CCFF00] hover:bg-[#b8e600] active:scale-95 text-black flex items-center justify-center font-black shadow-[0_0_20px_rgba(204,255,0,0.4)] cursor-pointer transition-transform shrink-0"
-                          title={
-                            audioPlayerState.currentId === photo.id && audioPlayerState.isPlaying
-                              ? 'Durdur'
-                              : 'Dinle'
-                          }
-                        >
-                          {audioPlayerState.currentId === photo.id && audioPlayerState.isLoading ? (
-                            <RefreshCw className="w-5 h-5 animate-spin text-black" />
-                          ) : audioPlayerState.currentId === photo.id && audioPlayerState.isPlaying ? (
-                            <Pause className="w-5 h-5 fill-black" />
-                          ) : (
-                            <Play className="w-5 h-5 fill-black ml-0.5" />
-                          )}
-                        </button>
-                        
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-1 h-6">
-                            {[12, 24, 16, 28, 20, 14, 26, 18, 22, 10, 24, 15].map((h, i) => (
-                              <div
-                                key={i}
-                                className={`w-1 rounded-full transition-all duration-300 ${
-                                  audioPlayerState.currentId === photo.id && audioPlayerState.isPlaying
-                                    ? 'bg-[#CCFF00] animate-pulse'
-                                    : 'bg-white/20'
-                                }`}
-                                style={{ height: `${h}px` }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
-                        <span className="font-bold text-white truncate max-w-[150px]">
-                          @{photo.uploaded_by}
-                        </span>
-
-                        {isOwner && (
-                          <button
-                            onClick={(e) => handleDeletePhoto(photo, e)}
-                            className="text-red-400 hover:text-red-300 p-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                }
-
-                // 2. POLAROID FOTOĞRAF / VİDEO KARTI (TAM HİZALI, DÜZGÜN KENARLAR)
                 return (
-                  <motion.div
+                  <PhotoCard
                     key={photo.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'spring', damping: 20 }}
-                    onClick={(e) => {
+                    photo={photo}
+                    isSelected={isSelected}
+                    isSelectMode={isSelectMode}
+                    isDisposableLocked={isDisposableLocked}
+                    isOwner={isOwner}
+                    timeString={timeString}
+                    isCover={isCover}
+                    photoReactions={photoReactions}
+                    selfieReactionsList={selfieReactions[photo.id] || []}
+                    deviceBadge={deviceBadge}
+                    uploaderNick={parsed.nick}
+                    getMediaUrl={getMediaUrl}
+                    onCardClick={(e) => {
                       if (isSelectMode) {
                         toggleSelectPhoto(photo.id, e);
                       } else if (!isDisposableLocked) {
@@ -2597,182 +2589,16 @@ export default function RoomPage() {
                       }
                     }}
                     onDoubleClick={() => addReaction(photo.id, '🔥')}
-                    className={`group relative bg-white text-black p-2 sm:p-2.5 pb-3.5 sm:pb-4 rounded-2xl shadow-xl transition-all cursor-pointer select-none hover:scale-[1.02] hover:z-20 ${
-                      isSelected ? 'ring-4 ring-[#CCFF00]' : ''
-                    }`}
-                  >
-                    {/* Seçim Onay Rozeti */}
-                    {isSelectMode && (
-                      <div className="absolute top-4 left-4 z-20">
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-[#CCFF00] text-black shadow-lg' : 'bg-black/60 border border-white/40 text-transparent'
-                        }`}>
-                          <Check className="w-4 h-4 stroke-[3]" />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Polaroid Medya Alanı */}
-                    <div className="relative aspect-square rounded-xl overflow-hidden bg-neutral-900">
-                      {isVideo ? (
-                        <video
-                          src={getMediaUrl(photo.r2_file_key)}
-                          muted
-                          playsInline
-                          loop
-                          autoPlay
-                          className={`object-cover w-full h-full ${
-                            isDisposableLocked ? 'blur-2xl scale-125 filter' : ''
-                          }`}
-                        />
-                      ) : (
-                        <img
-                          src={getMediaUrl(photo.r2_file_key)}
-                          alt={photo.original_name}
-                          loading="lazy"
-                          className={`object-cover w-full h-full ${
-                            isDisposableLocked ? 'blur-2xl scale-125 filter' : ''
-                          }`}
-                        />
-                      )}
-
-                      {/* Disposable Kilit Damgası */}
-                      {isDisposableLocked && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/40 backdrop-blur-md">
-                          <Lock className="w-6 h-6 text-[#FF2E93] mb-1" />
-                          <span className="font-mono text-[10px] font-black uppercase text-white tracking-widest bg-black/60 px-2 py-0.5 rounded">
-                            🔒 KİLİTLİ
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Aksiyon Butonları (İndir / Sil) */}
-                      {!isDisposableLocked && !isSelectMode && (
-                        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelfieTargetPhoto(photo);
-                            }}
-                            title="Canlı Yüz Reaksiyonu Ver 📸"
-                            className="p-1.5 rounded-full bg-black/70 hover:bg-[#CCFF00] hover:text-black text-amber-300 backdrop-blur-md transition cursor-pointer"
-                          >
-                            <Camera className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setChatReplyPhoto(photo);
-                              setShowChatDrawer(true);
-                            }}
-                            title="Sohbette Alıntıla"
-                            className="p-1.5 rounded-full bg-black/70 hover:bg-black text-pink-400 hover:text-pink-300 backdrop-blur-md transition cursor-pointer"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={(e) => downloadSingleFile(photo.r2_file_key, photo.original_name, e)}
-                            title="Orijinal formatında indir"
-                            className="p-1.5 rounded-full bg-black/70 hover:bg-black text-[#CCFF00] backdrop-blur-md transition cursor-pointer"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-
-                          {isOwner && (
-                            <button
-                              onClick={(e) => handleDeletePhoto(photo, e)}
-                              title="Sil"
-                              className="p-1.5 rounded-full bg-red-900/80 hover:bg-red-900 text-white backdrop-blur-md transition cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* VIBE CHECK ROZETİ */}
-                      {(() => {
-                        const parsed = parsePhotoUploader(photo.uploaded_by);
-                        if (photo.vibe_check_id || parsed.vibeCheckId) {
-                          const isLate = photo.is_late ?? parsed.isLate;
-                          return (
-                            <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full text-[9px] font-mono font-black shadow-lg pointer-events-none flex items-center gap-1 bg-black/75 backdrop-blur-sm border border-white/20">
-                              {isLate ? (
-                                <span className="text-amber-400">🐢 Geç Kaldı</span>
-                              ) : (
-                                <span className="text-[#CCFF00]">⚡ Zamanında</span>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-
-                      {/* GÜNÜN KAPAĞI TAÇ ROZETİ */}
-                      {photo.id === coverPhoto?.id && reactions[coverPhoto.id]?.length > 0 && (
-                        <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-black font-black text-[9px] flex items-center gap-1 shadow-lg shadow-amber-500/40 pointer-events-none">
-                          <span>👑 GÜNÜN KAPAĞI</span>
-                        </div>
-                      )}
-
-                      {/* SESSİZ EXIF & SAAT KÜNYESİ ROZETİ */}
-                      {(() => {
-                        const parsed = parsePhotoUploader(photo.uploaded_by);
-                        const dev = parsed.device || deviceMap[photo.id];
-                        const badge = getDeviceBadge(dev, photo.taken_at || photo.created_at);
-                        if (!badge) return null;
-                        return (
-                          <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-md border border-white/10 text-[9px] font-mono text-neutral-200 flex items-center gap-1 shadow-sm pointer-events-none">
-                            <span>{badge}</span>
-                          </div>
-                        );
-                      })()}
-
-                      {/* CANLI YÜZ REAKSİYONU (LOCKET STYLE AVATAR STACK) */}
-                      <div className="absolute bottom-2.5 right-2.5 z-20">
-                        <SelfieReactionStack
-                          reactions={selfieReactions[photo.id] || []}
-                          onAddReaction={
-                            !isDisposableLocked && !isSelectMode
-                              ? () => setSelfieTargetPhoto(photo)
-                              : undefined
-                          }
-                          size="sm"
-                        />
-                      </div>
-
-                      {/* Standart Emojiler (Selfie yoksa) */}
-                      {photoReactions.length > 0 && !(selfieReactions[photo.id]?.length > 0) && (
-                        <div className="absolute bottom-2 right-2 flex flex-wrap gap-1 max-w-[80px] pointer-events-none">
-                          {photoReactions.map((emoji, i) => (
-                            <motion.span
-                              key={i}
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              className="text-xs bg-black/60 rounded-full px-1 py-0.5 backdrop-blur-sm"
-                            >
-                              {emoji}
-                            </motion.span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Polaroid Alt Not & Lokasyon Alanı (El Yazısı Hissi) */}
-                    <div className="mt-2.5 px-1 flex items-center justify-between text-neutral-800">
-                      <div className="truncate max-w-[140px]">
-                        <p className="font-black text-xs truncate">
-                          @{parsePhotoUploader(photo.uploaded_by).nick}
-                        </p>
-                      </div>
-
-                      <span className="font-mono text-[11px] font-bold text-neutral-500 shrink-0">
-                        {timeString}
-                      </span>
-                    </div>
-                  </motion.div>
+                    onDownload={(e) => downloadSingleFile(photo.r2_file_key, photo.original_name, e)}
+                    onDelete={(e) => handleDeletePhoto(photo, e)}
+                    onChatReply={(e) => {
+                      e.stopPropagation();
+                      setChatReplyPhoto(photo);
+                      setShowChatDrawer(true);
+                    }}
+                    onSelfieReaction={() => setSelfieTargetPhoto(photo)}
+                    audioPlayerState={audioPlayerState}
+                  />
                 );
               })}
             </div>
