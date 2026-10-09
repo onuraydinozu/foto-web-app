@@ -1900,10 +1900,21 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
   
   const searchYoutube = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!youtubeQuery.trim()) return;
+    const query = youtubeQuery.trim();
+    if (!query) return;
+
+    // Doğrudan YouTube linki yapıştırıldıysa anında ID'yi çek ve kaydet
+    const urlMatch = query.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([\w-]{11})/);
+    if (urlMatch && urlMatch[1]) {
+      handleSaveYoutube(urlMatch[1]);
+      setYoutubeQuery('');
+      setYoutubeResults([]);
+      return;
+    }
+
     setIsYoutubeSearching(true);
     try {
-      const res = await fetch(`/api/youtube?q=${encodeURIComponent(youtubeQuery)}`);
+      const res = await fetch(`/api/youtube?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       if (data.videos) {
         setYoutubeResults(data.videos);
@@ -2449,6 +2460,22 @@ async function createThumbnailBlob(file: File | Blob, maxDim = 400): Promise<Blo
 
           {/* YATAY KAYDIRILABİLİR ARAÇ BUTONLARI (44px dokunma dostu butonlar) */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {/* 1. MÜZİK (YOUTUBE ŞARKI ARA & OYNAT) */}
+            <button
+              onClick={() => setShowYoutubeModal(true)}
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl border transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 ${
+                room.spotify_url
+                  ? 'bg-red-500/20 hover:bg-red-500/30 border-red-500/50 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
+                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-200 hover:text-white'
+              }`}
+              title="YouTube'dan Şarkı Ara ve Odaya Ekle"
+            >
+              <Music className={`w-4 h-4 ${room.spotify_url ? 'text-red-400 animate-pulse' : 'text-neutral-300'}`} />
+              <span className="text-xs font-bold whitespace-nowrap">
+                {room.spotify_url ? 'Müzik Çalıyor 🎵' : 'Müzik 🎵'}
+              </span>
+            </button>
+
             {/* 2. EN'LER (RECAP) */}
             <button
               onClick={() => {
