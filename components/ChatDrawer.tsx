@@ -648,7 +648,12 @@ export default function ChatDrawer({
             </div>
 
             {/* ÜST BAR (KANALLAR & BUTONLAR) */}
-            <div className="p-3.5 sm:p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/40 backdrop-blur-md">
+            <div 
+              className="p-3.5 sm:p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/40 backdrop-blur-md"
+              style={{
+                paddingTop: 'max(0.875rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))'
+              }}
+            >
               <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-2xl border border-white/10 text-xs font-bold">
                 <button
                   onClick={() => {

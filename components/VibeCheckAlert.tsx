@@ -149,7 +149,12 @@ ${shareUrl}`;
   };
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[100] p-3 sm:p-4 pointer-events-none flex justify-center">
+    <div 
+      className="fixed inset-x-0 top-0 z-[100] p-3 sm:p-4 pointer-events-none flex justify-center"
+      style={{
+        paddingTop: 'max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))'
+      }}
+    >
       <motion.div
         initial={{ y: -60, scale: 0.95, opacity: 0 }}
         animate={{ y: 0, scale: 1, opacity: 1 }}

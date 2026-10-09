@@ -287,7 +287,13 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-start sm:justify-center items-center pt-24 sm:pt-6 p-4 sm:p-6 pb-20 overflow-x-hidden selection:bg-[#CCFF00] selection:text-black">
+    <main 
+      className="relative min-h-screen w-full text-[#F3F4F6] flex flex-col justify-start sm:justify-center items-center p-4 sm:p-6 overflow-x-hidden selection:bg-[#CCFF00] selection:text-black"
+      style={{
+        paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1.25rem))',
+        paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 2rem))'
+      }}
+    >
       
       {/* AUTH MODALI */}
       <AuthModal 

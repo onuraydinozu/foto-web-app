@@ -10,6 +10,10 @@
   --cyber-lime: #CCFF00;
   --acid-pink: #FF2E93;
   --electric-violet: #7928CA;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -23,6 +27,7 @@ html, body {
   color: #F3F4F6;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
+  min-height: -webkit-fill-available;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
