@@ -63,7 +63,7 @@ GÖREVİN VE KURALLAR:
 
     console.log(`[Gemini Grounding Call]: Prompt sending to gemini-flash-latest with tools: [{ googleSearch: {} }]`);
 
-    // 2. Gemini Live Google Search Grounding Çağrısı
+    // 2. Gemini Live Google Search Grounding Çağrısı (veya doğrudan model fallback)
     let response;
     try {
       response = await ai.models.generateContent({
@@ -73,42 +73,49 @@ GÖREVİN VE KURALLAR:
           tools: [{ googleSearch: {} }]
         }
       });
-    } catch (modelErr: any) {
-      console.warn('gemini-flash-latest failed, trying gemini-3.8-flash:', modelErr.message);
-      // Fallback model
+    } catch (groundingErr: any) {
+      console.warn('[Gemini AI Grounding Warning]: Grounding quota or tool failed, falling back to direct model:', groundingErr.message);
+      // Fallback: Gemini direct generation without search tool (prevents 429 quota exhaustion on Search Grounding)
       response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
+        model: 'gemini-flash-latest',
+        contents: prompt
       });
     }
 
     const fullText = response?.text || '';
-    console.log(`[Gemini Grounding Response]: Length = ${fullText.length}`);
+    console.log(`[Gemini Response]: Length = ${fullText.length}`);
 
     // 3. JSON Mekan Kartlarını Ayıkla
     let places: any[] = [];
     let cleanContent = fullText;
+    let jsonString = '';
 
     const jsonMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (jsonMatch && jsonMatch[1]) {
+      jsonString = jsonMatch[1].trim();
+      cleanContent = fullText.replace(/```(?:json)?[\s\S]*?```/g, '').trim();
+    } else {
+      const arrayMatch = fullText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (arrayMatch) {
+        jsonString = arrayMatch[0].trim();
+        cleanContent = fullText.replace(/\[\s*\{[\s\S]*\}\s*\]/g, '').trim();
+      }
+    }
+
+    if (jsonString) {
       try {
-        const parsed = JSON.parse(jsonMatch[1]);
+        const parsed = JSON.parse(jsonString);
         if (Array.isArray(parsed)) {
           places = parsed.map((p: any, idx: number) => ({
-            place_id: `gemini_ground_${idx}`,
+            place_id: `gemini_ground_${Date.now()}_${idx}`,
             name: p.name || 'Mekan',
             district: p.district || '',
             rating: p.rating || '4.5',
-            reason: p.summary || p.reason || 'Canlı Google aramasında önerilen mekan.',
+            reason: p.summary || p.reason || 'Tavsiye edilen popüler mekan.',
             mapsUrl: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`,
             googleMapsUri: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`
           }));
         }
-        // Temiz metin: JSON bloğunu metinden çıkar
-        cleanContent = fullText.replace(/```(?:json)?[\s\S]*?```/g, '').trim();
       } catch (e) {
         console.error('Failed to parse places JSON from Gemini response:', e);
       }

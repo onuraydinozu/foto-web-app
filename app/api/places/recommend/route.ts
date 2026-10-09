@@ -74,24 +74,32 @@ KURALLAR:
           tools: [{ googleSearch: {} }]
         }
       });
-    } catch (modelErr: any) {
-      console.warn('gemini-flash-latest failed, trying gemini-3.8-flash:', modelErr.message);
+    } catch (groundingErr: any) {
+      console.warn('[Gemini Grounding Warning]: Grounding quota or tool failed, falling back to direct model:', groundingErr.message);
+      // Fallback: Gemini direct generation without search tool (prevents 429 quota exhaustion on Search Grounding)
       response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
+        model: 'gemini-flash-latest',
+        contents: prompt
       });
     }
 
     const fullText = response?.text || '';
     let places: any[] = [];
+    let jsonString = '';
 
     const jsonMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (jsonMatch && jsonMatch[1]) {
+      jsonString = jsonMatch[1].trim();
+    } else {
+      const arrayMatch = fullText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (arrayMatch) {
+        jsonString = arrayMatch[0].trim();
+      }
+    }
+
+    if (jsonString) {
       try {
-        const parsed = JSON.parse(jsonMatch[1]);
+        const parsed = JSON.parse(jsonString);
         if (Array.isArray(parsed)) {
           places = parsed.map((p: any, idx: number) => {
             const placeName = p.name || 'Mekan';
