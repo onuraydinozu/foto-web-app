@@ -2112,141 +2112,35 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         }}
       >
         <header
-          className="rounded-[1.5rem] bg-[#12151F] border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex flex-col gap-2.5"
+          className="rounded-2xl bg-[#12151F]/90 backdrop-blur-xl border border-white/15 px-3 py-2 sm:px-4 sm:py-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-between gap-2"
         >
-          {/* ÜST SATIR: Çıkış, Başlık, Aksiyonlar */}
-          <div className="flex items-center justify-between gap-2 w-full">
-            {/* SOL: Çıkış ve Başlık */}
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                onClick={() => router.push('/')}
-                title="Ana Sayfaya ve Kapsüllerime Dön"
-                className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-white transition shrink-0 flex items-center gap-1.5 cursor-pointer text-xs font-bold"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#CCFF00]" />
-                <span>Kapsüllerim</span>
-              </button>
-              
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 min-w-0">
-                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#CCFF00] animate-pulse shrink-0" />
-                <span className="font-black text-[11px] sm:text-sm tracking-wide text-white truncate max-w-[80px] sm:max-w-[160px]">
-                  {capsuleName}
-                </span>
-              </div>
-            </div>
-
-            {/* SAĞ: QR, Katılımcılar, Recap */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={() => setShowQrModal(true)}
-                className="p-1.5 sm:p-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer"
-                title="QR Kod"
-              >
-                <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#CCFF00]" />
-              </button>
-              
-              <button
-                onClick={() => setShowParticipantsModal(true)}
-                className="p-1.5 sm:p-2 rounded-full bg-white/5 hover:bg-[#FF2E93]/30 border border-white/10 hover:border-[#FF2E93]/50 text-neutral-300 hover:text-[#FF2E93] transition cursor-pointer"
-                title="Katılımcılar"
-              >
-                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF2E93]" />
-              </button>
-
-              <button
-                onClick={() => setShowChatDrawer(true)}
-                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-gradient-to-r from-violet-600/30 to-pink-500/30 hover:from-violet-600/50 hover:to-pink-500/50 border border-violet-500/50 text-violet-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-                title="Sohbet & DM İstasyonu"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-[#CCFF00]" />
-                <span className="hidden sm:inline text-xs font-bold">Sohbet</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowRecapModal(true);
-                  confetti({
-                    particleCount: 40,
-                    spread: 60,
-                    origin: { y: 0.2 },
-                    colors: ['#FFD700', '#CCFF00', '#FF2E93'],
-                  });
-                }}
-                className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full border transition flex items-center gap-1 cursor-pointer ${
-                  isClosingSoon
-                    ? 'bg-amber-500/25 border-amber-400 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                    : 'bg-white/5 hover:bg-white/15 border-white/10 text-neutral-300'
-                }`}
-                title="Kapsül Recap"
-              >
-                <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline text-xs font-bold">Recap</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowReceiptModal(true);
-                  confetti({
-                    particleCount: 40,
-                    spread: 60,
-                    origin: { y: 0.2 },
-                    colors: ['#000000', '#FFFFFF', '#CCFF00'],
-                  });
-                }}
-                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/30 text-neutral-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-                title="Günün Faturası (Receiptify Tarzı Fiş)"
-              >
-                <Receipt className="w-3.5 h-3.5 text-amber-300" />
-                <span className="hidden sm:inline text-xs font-bold">Fiş</span>
-              </button>
-
-              {/* TINDER SWIPE MODU BUTONU */}
-              <button
-                onClick={() => setShowSwipeModal(true)}
-                disabled={photos.length === 0}
-                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-orange-400 transition flex items-center gap-1 cursor-pointer disabled:opacity-30"
-                title="Tinder Modunda Ayıkla (Swipe)"
-              >
-                <Flame className="w-3.5 h-3.5 fill-orange-400" />
-                <span className="hidden sm:inline text-xs font-bold">Ayıkla</span>
-              </button>
-
-              {/* 10S REELS KLİP BUTONU */}
-              <button
-                onClick={() => setShowReelsModal(true)}
-                disabled={photos.length === 0}
-                className="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/5 hover:bg-[#CCFF00]/20 border border-white/10 hover:border-[#CCFF00]/40 text-[#CCFF00] transition flex items-center gap-1 cursor-pointer disabled:opacity-30"
-                title="10s Beat-Sync Video Özeti Yap"
-              >
-                <Film className="w-3.5 h-3.5 text-[#CCFF00]" />
-                <span className="hidden sm:inline text-xs font-bold">Klip</span>
-              </button>
+          {/* SOL: Çıkış ve Oda Başlığı (Kırpılma Yok, Ferah) */}
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => router.push('/')}
+              title="Ana Sayfaya ve Kapsüllerime Dön"
+              className="px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-white transition shrink-0 flex items-center gap-1.5 cursor-pointer text-xs font-bold"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-[#CCFF00]" />
+              <span className="hidden xs:inline">Kapsüllerim</span>
+            </button>
+            
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse shrink-0" />
+              <span className="font-black text-xs sm:text-sm tracking-wide text-white truncate">
+                {capsuleName}
+              </span>
             </div>
           </div>
 
-          {/* ALT SATIR: Kod, Süre, Paylaş */}
-          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-0.5 w-full">
-            <div className="flex items-center gap-2 shrink-0">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  navigator.clipboard.writeText(room.short_id);
-                  alert(`Kapsül Kodu kopyalandı: ${room.short_id}`);
-                }}
-                className="flex items-center gap-1.5 text-[11px] sm:text-xs px-2.5 py-1 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/30 text-[#CCFF00] font-mono font-bold transition cursor-pointer shrink-0"
-              >
-                <span className="text-[#CCFF00]/60">KOD:</span>
-                <span>{room.short_id}</span>
-              </motion.button>
-              
-              <CountdownTimer
-                createdAt={room?.created_at}
-                uploadLockedAt={room?.upload_locked_at}
-                roomId={room?.id}
-                onExpire={() => setIsExpired(true)}
-              />
-            </div>
+          {/* SAĞ: Geri Sayım Süresi & Paylaş */}
+          <div className="flex items-center gap-2 shrink-0">
+            <CountdownTimer
+              createdAt={room?.created_at}
+              uploadLockedAt={room?.upload_locked_at}
+              roomId={room?.id}
+              onExpire={() => setIsExpired(true)}
+            />
 
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -2254,12 +2148,12 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
               onClick={() => {
                 const text = `📸 "${capsuleName}" Kapsül Kodu: ${room.short_id}\nDoğrudan bağlanmak için tıkla:\n${shareInviteUrl}`;
                 navigator.clipboard.writeText(text);
-                alert('Davet linki kopyalandı! WhatsApp grubuna atarak arkadaşlarını direkt odaya topla. ⚡');
+                alert(`Davet linki ve Kapsül Kodu (${room.short_id}) kopyalandı! WhatsApp grubuna atarak arkadaşlarını topla. ⚡`);
               }}
-              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold text-[10px] sm:text-xs flex items-center gap-1.5 transition shrink-0 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 rounded-full bg-[#CCFF00]/15 hover:bg-[#CCFF00]/25 border border-[#CCFF00]/40 text-[#CCFF00] font-bold text-xs flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-sm active:scale-95"
             >
-              <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Paylaş
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Paylaş</span>
             </motion.button>
           </div>
         </header>
@@ -2332,41 +2226,41 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
           </div>
         )}
 
-        {/* Kullanıcı Kimliği & Canlı Varlık & Günün Kapağı Şeridi */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 sm:p-3 rounded-2xl bg-[#12151F]/60 backdrop-blur-sm border border-white/10 text-xs shadow-lg">
-          {/* Sol: Kullanıcı Profili (Modern Mini Kapsül - Parantezli Forum Mantığı Kaldırıldı) */}
+        {/* ========================================================
+            2. KAT: KOMPAKT PROFİL & DURUM ŞERİDİ
+           ======================================================== */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-[#12151F]/60 backdrop-blur-sm border border-white/10 text-xs shadow-lg">
+          {/* Sol: Kullanıcı Profili */}
           <button
             onClick={() => setShowUserModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CCFF00]/40 transition group cursor-pointer"
+            className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CCFF00]/40 transition group cursor-pointer shrink-0 min-w-0"
             title="Profilini Düzenle"
           >
             <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#CCFF00] to-emerald-400 text-black font-black flex items-center justify-center text-[10px] shrink-0">
               {(currentNickname || 'A')[0].toUpperCase()}
             </div>
-            <span className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition truncate max-w-[120px] sm:max-w-[200px]">
+            <span className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition truncate max-w-[100px] xs:max-w-[140px] sm:max-w-[200px]">
               @{currentNickname || 'Anonim'}
             </span>
-            {currentCity && <span className="text-[10px] text-neutral-400 font-mono hidden sm:inline">📍 {currentCity}</span>}
-            <span className="text-[9px] text-[#CCFF00]/70 font-mono group-hover:text-[#CCFF00] ml-0.5">
-              ✏️
-            </span>
+            {currentCity && <span className="text-[10px] text-neutral-400 font-mono hidden md:inline">📍 {currentCity}</span>}
+            <span className="text-[10px] text-[#CCFF00]/70 ml-0.5">🟢</span>
           </button>
 
-          {/* Sağ: Canlı Sayacı + Günün Kapağı + Akış Kilit Butonu */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* CANLI VARLIK SAYACI */}
+          {/* Sağ: Aktif Galeridekiler + Günün Kapağı + Disposable Kilit Durumu */}
+          <div className="flex items-center gap-1.5 xs:gap-2 shrink-0">
+            {/* Aktif Kişi Sayacı */}
             <div 
-              title="Şu an odayı görüntüleyen aktif kişi sayısı"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold shrink-0"
+              title="Şu an galerideki aktif kişi sayısı"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold shrink-0"
             >
               <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span>{activeViewers} kişi galeride</span>
+              <span>{activeViewers} kişi</span>
             </div>
 
-            {/* OTOMATİK GÜNÜN KAPAĞI ROZETİ */}
+            {/* Günün Kapağı (Varsa) */}
             {coverPhoto && (
               <button
                 onClick={() => {
@@ -2374,40 +2268,32 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
                   if (idx !== -1) setStoryIndex(idx);
                 }}
                 title="Günün Kapağını Story Modunda İzle"
-                className="hidden xs:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[11px] font-bold transition cursor-pointer group shrink-0"
+                className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[11px] font-bold transition cursor-pointer shrink-0"
               >
                 <span>👑</span>
-                <span className="text-neutral-400 font-medium hidden sm:inline">Kapak:</span>
-                <span className="text-white group-hover:text-[#CCFF00] transition truncate max-w-[80px] sm:max-w-[120px]">
-                  @{parsePhotoUploader(coverPhoto.uploaded_by).nick}
-                </span>
-                {reactions[coverPhoto.id]?.length > 0 && (
-                  <span className="text-[10px] text-amber-400 font-mono">
-                    🔥{reactions[coverPhoto.id].filter((e: string) => e === '🔥').length || reactions[coverPhoto.id].length}
-                  </span>
-                )}
+                <span className="truncate max-w-[80px]">@{parsePhotoUploader(coverPhoto.uploaded_by).nick}</span>
               </button>
             )}
 
             {/* Disposable Kilit Butonu */}
             <button
               onClick={toggleDisposableMode}
-              title={room.is_unlocked ? 'Canlı Akış Aktif' : 'Disposable Kilitli'}
-              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-bold transition cursor-pointer ${
+              title={room.is_unlocked ? 'Canlı Akış Aktif (Herkes anlık görüyor)' : 'Disposable Kilitli (Süre sonu açılır)'}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition cursor-pointer shrink-0 ${
                 room.is_unlocked
-                  ? 'bg-white/10 text-neutral-300 hover:bg-white/15'
+                  ? 'bg-white/10 text-neutral-300 hover:bg-white/15 border border-white/15'
                   : 'bg-[#FF2E93]/20 border border-[#FF2E93]/40 text-[#FF2E93]'
               }`}
             >
               {room.is_unlocked ? (
                 <>
                   <Unlock className="w-3 h-3 text-[#CCFF00]" />
-                  <span className="hidden sm:inline">Canlı Akış</span>
+                  <span>Canlı</span>
                 </>
               ) : (
                 <>
                   <Lock className="w-3 h-3 text-[#FF2E93]" />
-                  <span className="hidden sm:inline">Kilitli</span>
+                  <span>Kilitli</span>
                 </>
               )}
             </button>
@@ -2415,75 +2301,171 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         </div>
 
         {/* ========================================================
-            HIZLI DM & AVATAR ÇUBUĞU (Locket + Instagram Stories Tarzı)
+            3. KAT: MASANIN ARAÇLARI (Yatay Kaydırılabilir Şerit / Horizontal Action Rail)
            ======================================================== */}
-        <div className="rounded-2xl p-3 bg-[#12151F]/60 border border-white/10 backdrop-blur-sm shadow-md">
-          <div className="flex items-center justify-between mb-2.5 px-1">
+        <div className="rounded-2xl p-2.5 sm:p-3 bg-[#12151F]/60 border border-white/10 backdrop-blur-sm shadow-md space-y-2">
+          <div className="flex items-center justify-between px-1">
             <span className="text-[11px] font-mono font-bold text-neutral-300 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-              <span>HIZLI FISILTI & DM</span>
+              <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
+              <span>MASANIN ARAÇLARI</span>
             </span>
             <span className="text-[10px] font-mono text-neutral-400">
-              Dokun & Konuş 💬
+              Kaydır & Dokun ⚡
             </span>
           </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
-            {/* 1. GENEL MASA (Oda Akışı) */}
+          {/* YATAY KAYDIRILABİLİR ARAÇ BUTONLARI (44px dokunma dostu butonlar) */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {/* 1. SOHBET */}
             <button
               onClick={() => {
                 setSelectedChatTarget(null);
                 setShowChatDrawer(true);
               }}
-              className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600/25 to-pink-500/25 hover:from-violet-600/40 hover:to-pink-500/40 border border-violet-500/40 text-violet-200 hover:text-white transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
             >
-              <div className="relative w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-[#CCFF00] via-emerald-400 to-[#CCFF00] group-hover:scale-105 transition-transform shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <div className="w-full h-full rounded-full bg-[#12151F] flex items-center justify-center text-lg">
-                  💬
-                </div>
-              </div>
-              <span className="text-[10px] font-bold text-neutral-300 group-hover:text-[#CCFF00] transition">
-                Genel Masa
+              <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
+              <span className="text-xs font-bold whitespace-nowrap">Sohbet</span>
+            </button>
+
+            {/* 2. EN'LER (RECAP) */}
+            <button
+              onClick={() => {
+                setShowRecapModal(true);
+                confetti({
+                  particleCount: 40,
+                  spread: 60,
+                  origin: { y: 0.2 },
+                  colors: ['#FFD700', '#CCFF00', '#FF2E93'],
+                });
+              }}
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl border transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 ${
+                isClosingSoon
+                  ? 'bg-amber-500/25 border-amber-400 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-200 hover:text-white'
+              }`}
+            >
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold whitespace-nowrap">En'ler</span>
+            </button>
+
+            {/* 3. GÜNÜN FATURASI */}
+            <button
+              onClick={() => {
+                setShowReceiptModal(true);
+                confetti({
+                  particleCount: 40,
+                  spread: 60,
+                  origin: { y: 0.2 },
+                  colors: ['#000000', '#FFFFFF', '#CCFF00'],
+                });
+              }}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/40 text-neutral-200 hover:text-white transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
+            >
+              <Receipt className="w-4 h-4 text-amber-300" />
+              <span className="text-xs font-bold whitespace-nowrap">Fatura</span>
+            </button>
+
+            {/* 4. KATILIMCILAR */}
+            <button
+              onClick={() => setShowParticipantsModal(true)}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-[#FF2E93]/20 border border-white/10 hover:border-[#FF2E93]/40 text-neutral-200 hover:text-[#FF2E93] transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
+            >
+              <Users className="w-4 h-4 text-[#FF2E93]" />
+              <span className="text-xs font-bold whitespace-nowrap">
+                {allRoomParticipants.length > 0 ? `${allRoomParticipants.length} Katılımcı` : 'Katılımcılar'}
               </span>
             </button>
 
-            {/* 2. DİĞER KATILIMCILAR (1-e-1 Hızlı Fısıltı) */}
-            {allRoomParticipants
-              .filter((p) => p !== currentNickname?.replace(/^@/, ''))
-              .map((nick) => {
-                const hasRecentMsg = recentChat?.sender === nick;
-                return (
-                  <button
-                    key={nick}
-                    onClick={() => openDirectChatWith(nick)}
-                    className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
-                  >
-                    <div className={`relative w-12 h-12 rounded-full p-[2px] transition-transform group-hover:scale-105 ${
-                      hasRecentMsg
-                        ? 'bg-gradient-to-tr from-[#FF2E93] via-violet-500 to-[#CCFF00] animate-pulse shadow-[0_0_20px_rgba(255,46,147,0.5)]'
-                        : 'bg-gradient-to-tr from-violet-600/70 to-pink-500/70 hover:from-violet-500 hover:to-[#CCFF00]'
-                    }`}>
-                      <div className="w-full h-full rounded-full bg-[#0D0F18] flex items-center justify-center font-black text-sm text-white">
-                        {nick.slice(0, 1).toUpperCase()}
-                      </div>
-                      {hasRecentMsg && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FF2E93] text-[9px] flex items-center justify-center text-white font-bold shadow-md animate-bounce">
-                          💬
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-medium text-neutral-300 group-hover:text-white transition truncate max-w-[64px]">
-                      @{nick}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* 5. QR KOD */}
+            <button
+              onClick={() => setShowQrModal(true)}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-white transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95"
+            >
+              <QrCode className="w-4 h-4 text-[#CCFF00]" />
+              <span className="text-xs font-bold whitespace-nowrap">QR Kod</span>
+            </button>
 
-            {allRoomParticipants.filter((p) => p !== currentNickname?.replace(/^@/, '')).length === 0 && (
-              <div className="text-[11px] text-neutral-400 font-mono py-2 pl-2">
-                Odaya başka biri katıldığında hızlı fısıltı çemberi burada parlayacak ✨
-              </div>
-            )}
+            {/* 6. VİBE CHECK */}
+            <button
+              onClick={handleTriggerVibeCheck}
+              disabled={isTriggeringVibe}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-red-600/15 hover:bg-red-600/30 border border-red-500/35 text-amber-300 transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span className="text-xs font-bold whitespace-nowrap">Vibe Check</span>
+            </button>
+
+            {/* 7. 10S KLİP (REELS) */}
+            <button
+              onClick={() => setShowReelsModal(true)}
+              disabled={photos.length === 0}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-[#CCFF00]/15 border border-white/10 hover:border-[#CCFF00]/40 text-neutral-200 hover:text-[#CCFF00] transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 disabled:opacity-30"
+            >
+              <Film className="w-4 h-4 text-[#CCFF00]" />
+              <span className="text-xs font-bold whitespace-nowrap">10s Klip</span>
+            </button>
+          </div>
+
+          {/* HIZLI FISILTI & DM AVATAR ÇUBUĞU (Story Çemberleri) */}
+          <div className="pt-2 border-t border-white/5">
+            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
+              {/* GENEL MASA */}
+              <button
+                onClick={() => {
+                  setSelectedChatTarget(null);
+                  setShowChatDrawer(true);
+                }}
+                className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
+              >
+                <div className="relative w-11 h-11 rounded-full p-[2px] bg-gradient-to-tr from-[#CCFF00] via-emerald-400 to-[#CCFF00] group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(204,255,0,0.3)]">
+                  <div className="w-full h-full rounded-full bg-[#12151F] flex items-center justify-center text-sm">
+                    💬
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-neutral-300 group-hover:text-[#CCFF00] transition">
+                  Genel
+                </span>
+              </button>
+
+              {/* KATILIMCILAR */}
+              {allRoomParticipants
+                .filter((p) => p !== currentNickname?.replace(/^@/, ''))
+                .map((nick) => {
+                  const hasRecentMsg = recentChat?.sender === nick;
+                  return (
+                    <button
+                      key={nick}
+                      onClick={() => openDirectChatWith(nick)}
+                      className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
+                    >
+                      <div className={`relative w-11 h-11 rounded-full p-[2px] transition-transform group-hover:scale-105 ${
+                        hasRecentMsg
+                          ? 'bg-gradient-to-tr from-[#FF2E93] via-violet-500 to-[#CCFF00] animate-pulse shadow-[0_0_15px_rgba(255,46,147,0.5)]'
+                          : 'bg-gradient-to-tr from-violet-600/70 to-pink-500/70 hover:from-violet-500 hover:to-[#CCFF00]'
+                      }`}>
+                        <div className="w-full h-full rounded-full bg-[#0D0F18] flex items-center justify-center font-black text-xs text-white">
+                          {nick.slice(0, 1).toUpperCase()}
+                        </div>
+                        {hasRecentMsg && (
+                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FF2E93] text-[8px] flex items-center justify-center text-white font-bold shadow-md animate-bounce">
+                            💬
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-medium text-neutral-300 group-hover:text-white transition truncate max-w-[56px]">
+                        @{nick}
+                      </span>
+                    </button>
+                  );
+                })}
+
+              {allRoomParticipants.filter((p) => p !== currentNickname?.replace(/^@/, '')).length === 0 && (
+                <div className="text-[11px] text-neutral-400 font-mono py-1.5 pl-1">
+                  Arkadaşların odaya katıldığında hızlı fısıltı çemberi burada parlayacak ✨
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2518,43 +2500,46 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         </AnimatePresence>
 
         {/* ========================================================
-            ZAMAN TÜNELİ (TIMELINE FEED) & POLAROID GALERİ
+            4. KAT: GALERİ BAŞLIĞI & AKSİYONLARI (Zaman Tüneli)
            ======================================================== */}
-        <section className="space-y-5">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3">
+            {/* Başlık ve Anı Sayısı */}
+            <div className="flex items-center justify-between">
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                Zaman Tüneli
+                <span>Zaman Tüneli</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#CCFF00]/15 text-[#CCFF00] font-mono font-bold">
                   {photos.length} Anı
                 </span>
               </h2>
             </div>
 
+            {/* İki Geniş Parmak Dostu Buton (Geniş 2'li Grid) */}
             {photos.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-2 gap-2.5 w-full">
                 {/* 🔥 AYIKLA (TINDER MODU) BUTONU */}
                 <button
                   onClick={() => setShowSwipeModal(true)}
-                  className="text-xs font-bold px-3 py-1.5 rounded-xl border border-orange-500/40 bg-gradient-to-r from-orange-500/20 to-pink-500/20 hover:from-orange-500/30 hover:to-pink-500/30 text-white transition cursor-pointer flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.25)]"
+                  className="min-h-[46px] w-full text-xs sm:text-sm font-bold px-3 py-2.5 rounded-2xl border border-orange-500/40 bg-gradient-to-r from-orange-500/20 to-pink-500/20 hover:from-orange-500/30 hover:to-pink-500/30 text-white transition cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.25)] active:scale-[0.98]"
                 >
-                  <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400" />
-                  <span>Ayıkla (Tinder Modu) 🔥</span>
+                  <Flame className="w-4 h-4 text-orange-400 fill-orange-400 shrink-0" />
+                  <span className="truncate">Ayıkla (Tinder)</span>
                 </button>
 
+                {/* 📥 SEÇEREK İNDİR BUTONU */}
                 <button
                   onClick={() => {
                     setIsSelectMode(!isSelectMode);
                     if (isSelectMode) setSelectedIds(new Set());
                   }}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
+                  className={`min-h-[46px] w-full text-xs sm:text-sm font-bold px-3 py-2.5 rounded-2xl border transition cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] ${
                     isSelectMode
-                      ? 'bg-[#CCFF00] text-black border-[#CCFF00]'
-                      : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
+                      ? 'bg-[#CCFF00] text-black border-[#CCFF00] font-black'
+                      : 'bg-white/5 border-white/10 text-neutral-200 hover:bg-white/10 hover:text-white'
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>{isSelectMode ? 'Seçimi Bitir' : 'Seçerek İndir'}</span>
+                  <Layers className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{isSelectMode ? 'Seçimi Bitir' : 'Seçerek İndir'}</span>
                 </button>
               </div>
             )}
