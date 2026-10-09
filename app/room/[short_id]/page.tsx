@@ -4,10 +4,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
 import { 
   Download, Clock, MapPin, QrCode, Plus, Lock, Unlock, 
   X, Share2, Sparkles, Disc3, HardDrive, ShieldAlert,
@@ -15,17 +13,28 @@ import {
   Trash2, CheckSquare, Square, FileDown, Layers,
   Mic, MicOff, Play, Pause, Radio, Volume2, Globe, Heart, LogOut, ArrowLeft, Zap, MessageSquare, Receipt, Film, RefreshCw
 } from 'lucide-react';
-import exifr from 'exifr';
-import AuthModal from '@/components/AuthModal';
 import PollsCard from '@/components/PollsCard';
-import YoutubePlayer from '@/components/YoutubePlayer';
-import SwipeCuratorModal from '@/components/SwipeCuratorModal';
-import ChatDrawer from '@/components/ChatDrawer';
-import ReceiptModal from '@/components/ReceiptModal';
-import ReelsGeneratorModal from '@/components/ReelsGeneratorModal';
-import VibeCheckAlert, { playVibeCheckAudio } from '@/components/VibeCheckAlert';
 import VibeCheckShowcase from '@/components/VibeCheckShowcase';
-import SelfieReactionModal, { SelfieReactionPayload } from '@/components/SelfieReactionModal';
+import { playVibeCheckAudio } from '@/components/VibeCheckAlert';
+import type { SelfieReactionPayload } from '@/components/SelfieReactionModal';
+
+// Dinamik (Lazy) Yüklenen Ağır Modal Bileşenleri (İlk Sayfa Yükleme Hızı Max)
+const AuthModal = dynamic(() => import('@/components/AuthModal'), { ssr: false });
+const YoutubePlayer = dynamic(() => import('@/components/YoutubePlayer'), { ssr: false });
+const SwipeCuratorModal = dynamic(() => import('@/components/SwipeCuratorModal'), { ssr: false });
+const ChatDrawer = dynamic(() => import('@/components/ChatDrawer'), { ssr: false });
+const ReceiptModal = dynamic(() => import('@/components/ReceiptModal'), { ssr: false });
+const ReelsGeneratorModal = dynamic(() => import('@/components/ReelsGeneratorModal'), { ssr: false });
+const SelfieReactionModal = dynamic(() => import('@/components/SelfieReactionModal'), { ssr: false });
+const VibeCheckAlert = dynamic(() => import('@/components/VibeCheckAlert'), { ssr: false });
+
+// Dinamik Confetti Yükleyici
+const triggerConfetti = async (opts?: any) => {
+  try {
+    const mod = await import('canvas-confetti');
+    mod.default(opts);
+  } catch {}
+};
 import SelfieReactionStack, { SelfieReactionItem } from '@/components/SelfieReactionStack';
 import { addOfflineUpload, getOfflineUploads, removeOfflineUpload, PendingUpload } from '@/lib/offlineQueue';
 import { globalAudioPlayer } from '@/lib/audioPlayer';
@@ -664,7 +673,7 @@ export default function RoomPage() {
           });
 
           // Mini kutlama konfetisi
-          confetti({
+          triggerConfetti({
             particleCount: 30,
             spread: 50,
             origin: { y: 0.15 },
@@ -1016,7 +1025,7 @@ export default function RoomPage() {
         msg: `⚡ İnternet geldi! Kuyruktaki ${uploadedCount} anı kapsüle yüklendi!`,
         id: Date.now(),
       });
-      confetti({
+      triggerConfetti({
         particleCount: 35,
         spread: 60,
         origin: { y: 0.2 },
@@ -1114,7 +1123,8 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
       let takenAt = new Date();
       let deviceModel = '';
       try {
-        const exifData = await exifr.parse(file, ['Make', 'Model', 'DateTimeOriginal']);
+        const exifrMod = await import('exifr');
+            const exifData = await exifrMod.default.parse(file, ['Make', 'Model', 'DateTimeOriginal']);
         if (exifData?.DateTimeOriginal) {
           takenAt = exifData.DateTimeOriginal;
         }
@@ -1494,7 +1504,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
       fetchStorageStats();
 
       // Mini kutlama konfetisi
-      confetti({
+      triggerConfetti({
         particleCount: 30,
         spread: 50,
         origin: { y: 0.2 },
@@ -1610,6 +1620,10 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
     setDownloading(true);
     setDownloadPercent(0);
 
+    const [{ default: JSZip }, { saveAs }] = await Promise.all([
+      import('jszip'),
+      import('file-saver'),
+    ]);
     const zip = new JSZip();
     const folder = zip.folder(`kapsul-${room.short_id}`);
 
@@ -1636,7 +1650,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
       // ZIP indirildikten sonra mini recap özet kartını patlat
       setTimeout(() => {
         setShowRecapModal(true);
-        confetti({
+        triggerConfetti({
           particleCount: 50,
           spread: 80,
           origin: { y: 0.3 },
@@ -1850,7 +1864,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
         });
 
         // Mini kutlama konfetisi
-        confetti({
+        triggerConfetti({
           particleCount: 25,
           spread: 50,
           origin: { y: 0.7 },
@@ -1928,7 +1942,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
           payload: resData.vibeCheck,
         });
 
-        confetti({
+        triggerConfetti({
           particleCount: 80,
           spread: 80,
           origin: { y: 0.6 },
@@ -2311,7 +2325,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             <button
               onClick={() => {
                 setShowRecapModal(true);
-                confetti({
+                triggerConfetti({
                   particleCount: 40,
                   spread: 60,
                   origin: { y: 0.2 },
@@ -2332,7 +2346,7 @@ async function createThumbnailBlob(file: File, maxDim = 400): Promise<Blob | nul
             <button
               onClick={() => {
                 setShowReceiptModal(true);
-                confetti({
+                triggerConfetti({
                   particleCount: 40,
                   spread: 60,
                   origin: { y: 0.2 },

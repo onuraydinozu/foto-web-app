@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import AuthModal from '@/components/AuthModal';
+import dynamic from 'next/dynamic';
+const AuthModal = dynamic(() => import('@/components/AuthModal'), { ssr: false });
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, Camera, Zap, Flame, Bomb, MapPin, Globe, Radio, Lock, User, LogIn, LogOut, LayoutList, X, History } from 'lucide-react';
 
@@ -117,8 +118,9 @@ export default function Home() {
     const { data } = await supabase
       .from('rooms')
       .select('short_id, location, created_at, upload_locked_at')
-      .in('short_id', capsules)
-      .order('created_at', { ascending: false });
+      .in('short_id', capsules.slice(0, 15))
+      .order('created_at', { ascending: false })
+      .limit(15);
     if (data) {
       setMyCapsules(data);
       try { localStorage.setItem('snaproom_cached_capsules', JSON.stringify(data)); } catch {}

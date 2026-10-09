@@ -3,8 +3,6 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Share2, Receipt, Sparkles, Check, Flame, Trophy, Ghost, Moon, Sun, Music, MapPin } from 'lucide-react';
-import { toPng } from 'html-to-image';
-import confetti from 'canvas-confetti';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface ReceiptModalProps {
@@ -159,12 +157,13 @@ export default function ReceiptModal({
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-  // 2. Fişi Yüksek Çözünürlüklü PNG Olarak İndir (html-to-image)
+  // 2. Fişi Yüksek Çözünürlüklü PNG Olarak İndir (html-to-image dinamik import)
   const handleDownloadReceipt = async () => {
     if (!receiptRef.current) return;
     setDownloading(true);
 
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(receiptRef.current, {
         cacheBust: true,
         pixelRatio: 3,
@@ -176,6 +175,7 @@ export default function ReceiptModal({
       link.href = dataUrl;
       link.click();
 
+      const confetti = (await import('canvas-confetti')).default;
       confetti({
         particleCount: 70,
         spread: 80,
