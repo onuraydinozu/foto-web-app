@@ -10,20 +10,19 @@ export async function POST(req: Request) {
   try {
     const { messages, userCoords } = await req.json();
 
-    const geminiApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const placesApiKey = process.env.GOOGLE_PLACES_API_KEY || geminiApiKey;
 
     if (!geminiApiKey) {
-      console.error('[AI Chat Error]: GOOGLE_GENERATIVE_AI_API_KEY is not defined.');
+      console.error('[AI Chat Error]: GEMINI_API_KEY veya GOOGLE_GENERATIVE_AI_API_KEY bulunamadı!');
       return NextResponse.json(
-        { error: 'GOOGLE_GENERATIVE_AI_API_KEY bulunamadı. Lütfen Vercel ayarlarından ekleyin.' },
+        { error: 'GEMINI_API_KEY eksik! Lütfen Vercel veya .env.local ortam değişkenlerine ekleyin.' },
         { status: 500 }
       );
     }
 
     const google = createGoogle({ apiKey: geminiApiKey });
 
-    // Format all incoming messages to preserve full conversation history
     const formattedMessages = (messages || []).map((m: any) => ({
       role: m.role === 'user' ? 'user' : 'assistant',
       content: m.content || ''
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
 
     let fetchedPlaces: any[] = [];
 
-    // Gerçek Google Places API Tool'u
     // @ts-ignore
     const searchGooglePlaces = tool({
       description: 'Google Places API (New) üzerinden gerçek canlı mekanları arar. Kullanıcı bir semt ve istek belirttiğinde bu aracı çağırmak ZORUNLUDUR.',
@@ -53,7 +51,7 @@ export async function POST(req: Request) {
         const hasGps = typeof effectiveLat === 'number' && typeof effectiveLng === 'number';
 
         const textQuery = `${district} ${query}`.trim();
-        console.log(`[Google Places API Call]: textQuery="${textQuery}"`);
+        console.log(`[AI Tool -> Google Places Call]: textQuery="${textQuery}"`);
 
         const googleApiUrl = 'https://places.googleapis.com/v1/places:searchText';
         const requestBody: any = {
@@ -71,7 +69,7 @@ export async function POST(req: Request) {
           };
         }
 
-        const fieldMask = 'places.displayName,places.rating,places.formattedAddress,places.googleMapsUri,places.regularOpeningHours,places.photos';
+        const fieldMask = 'places.displayName,places.rating,places.formattedAddress,places.googleMapsUri,places.photos';
 
         const gRes = await fetch(googleApiUrl, {
           method: 'POST',
@@ -90,15 +88,16 @@ export async function POST(req: Request) {
         }
 
         const gData = await gRes.json();
-        if (gData.places && gData.places.length > 0) {
-          const mapped = gData.places.map((p: any, idx: number) => ({
+        const places = gData.places || [];
+
+        if (places.length > 0) {
+          const mapped = places.map((p: any, idx: number) => ({
             place_id: p.id || `google_${idx}`,
             name: p.displayName?.text || 'Mekan',
             rating: p.rating || 4.2,
             address: p.formattedAddress || district,
             district: district,
             googleMapsUri: p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.displayName?.text || '') + ' ' + (p.formattedAddress || ''))}`,
-            open_now: p.regularOpeningHours?.openNow ?? true,
             photo_url: p.photos?.[0]?.name ? `https://places.googleapis.com/v1/${p.photos[0].name}/media?maxHeightPx=600&maxWidthPx=800&key=${placesApiKey}` : null,
             reason: p.rating ? `Puanı ${p.rating} olan gerçek Google Haritalar mekanı.` : 'Google Haritalar üzerinden bulundu.'
           }));
@@ -106,7 +105,6 @@ export async function POST(req: Request) {
           return mapped;
         }
 
-        console.log(`[Google Places]: 0 mekan döndü.`);
         return [];
       }
     });
@@ -122,11 +120,10 @@ GÖREVLERİN:
 1. Kullanıcının tüm mesaj geçmişini dikkatle takip et.
 2. Kullanıcı bir semt adı söylediğinde (Örn: Çekmeköy, Sancaktepe, Kadıköy, Beşiktaş vb.) veya konum verdiğinde bunu anla. Çekmeköy veya başka bir semt dendiğinde ASLA tekrar "hangi semttesiniz" diye sorma!
 3. Kullanıcının istediği semt ve mekan türü için ZORUNLU OLARAK 'searchGooglePlaces' aracını çağır ve canlı verileri çek.
-4. ASLA hafızandan uydurma mekan veya geçmiş konuşmalardaki eski mekanları söyleme. Sadece 'searchGooglePlaces' aracından dönen gerçek mekanları aktar.
+4. ASLA hafızandan uydurma mekan söyleme. Sadece 'searchGooglePlaces' aracından dönen gerçek mekanları aktar.
 5. Kullanıcıya dobra, arkadaş canlısı ve samimi bir dille mekanları 2-3 cümleyle tanıt.
 6. Eğer kullanıcı ne aradığını veya nerede olduğunu henüz söylemediyse samimi bir dille kısaca sor.`;
 
-    // Gerçek Gemini LLM çağrısı (Tool Calling ile)
     const result = await generateText({
       model: google('gemini-1.5-flash'),
       system: systemPrompt,
