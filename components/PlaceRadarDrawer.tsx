@@ -54,6 +54,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
   const [category, setCategory] = useState(CATEGORIES[0].id);
   const [activeFilters, setActiveFilters] = useState<string[]>(['rating']);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [detectedLocationName, setDetectedLocationName] = useState<string | null>(null);
   const [places, setPlaces] = useState<any[]>([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -163,7 +164,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
     }
   }, [isOpen, activeTab]);
 
-  // Gerçek GPS Konumunu Al
+  // Gerçek GPS Konumunu Al ve Ters Jeokodlama (OpenStreetMap Nominatim + BigDataCloud)
   const handleGetLocation = () => {
     if (loadingPlaces || isSearchingRef.current) return;
     if (!('geolocation' in navigator)) {
@@ -173,13 +174,50 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
 
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      async pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const coords = { lat, lng };
         setLocation(coords);
-        setDistrict('Anlık Konum');
+
+        let detected = 'İstanbul';
+        // 1. OpenStreetMap Nominatim ile kesin Türkçe ilçe/semt tespiti
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
+            { headers: { 'Accept-Language': 'tr' } }
+          );
+          const data = await res.json();
+          const address = data.address || {};
+          detected =
+            address.suburb ||
+            address.district ||
+            address.town ||
+            address.city_district ||
+            address.county ||
+            address.city ||
+            'İstanbul';
+        } catch {
+          // 2. Yedek servis: BigDataCloud Reverse Geocode
+          try {
+            const geoRes = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=tr`
+            );
+            const geoData = await geoRes.json();
+            detected = geoData.locality || geoData.city || geoData.principalSubdivision || 'İstanbul';
+          } catch {}
+        }
+
+        // Temizleme: Resmi kurum eklerini sil
+        detected = detected.replace(/Belediyesi|Kaymakamlığı/gi, '').trim() || 'İstanbul';
+        console.log('📍 Tespit Edilen İlçe:', detected);
+
+        setDetectedLocationName(detected);
+        setDistrict(detected);
         setGpsLoading(false);
-        // Konum gelir gelmez anlık canlı arama yap
-        executeSearch(category, 'Anlık Konum', coords, activeFilters);
+
+        // React asenkron state gecikmesini önlemek için tespit edilen ilçeyi doğrudan fonksiyona geçir!
+        executeSearch(category, detected, coords, activeFilters);
       },
       err => {
         setGpsLoading(false);
@@ -393,17 +431,28 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                     </button>
                   </div>
                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    {location && (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap bg-[#CCFF00] text-black flex items-center gap-1">
-                        <Navigation className="w-3 h-3" /> GPS Aktif
-                      </span>
+                    {detectedLocationName && (
+                      <button
+                        onClick={() => {
+                          setDistrict(detectedLocationName);
+                          executeSearch(category, detectedLocationName, location, activeFilters);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition border cursor-pointer flex items-center gap-1 shrink-0 ${
+                          district === detectedLocationName
+                            ? 'bg-[#CCFF00] text-black border-[#CCFF00] font-black shadow-sm'
+                            : 'bg-[#CCFF00]/10 text-[#CCFF00] border-[#CCFF00]/40 hover:bg-[#CCFF00]/20 font-bold'
+                        }`}
+                      >
+                        <Navigation className="w-3 h-3" />
+                        📍 {detectedLocationName} (Konumun)
+                      </button>
                     )}
                     {DISTRICTS.map(d => (
                       <button
                         key={d}
                         onClick={() => handleSelectDistrict(d)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border cursor-pointer ${
-                          district === d && !location
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border cursor-pointer shrink-0 ${
+                          district === d && district !== detectedLocationName
                           ? 'bg-white text-black border-white' 
                           : 'bg-white/5 text-neutral-400 border-white/10 hover:bg-white/10'
                         }`}

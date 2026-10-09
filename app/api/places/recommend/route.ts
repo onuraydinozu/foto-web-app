@@ -70,7 +70,7 @@ ${locationContext}
 ${filterContext}
 
 GÖREV:
-"${targetDistrict}" bölgesinde "${cleanSearchQuery}" kategorisinde en bilinen, yüksek puanlı ve popüler 4 gerçek mekanı listele.
+Kullanıcının konumu: ${targetDistrict}. Bu ilçede ve hemen bitişiğindeki popüler merkezlerde (cadde/AVM aksları) bulunan en iyi 4 adet ${cleanSearchQuery} mekanını listele.
 
 KESİN KURALLAR:
 1. ASLA konut projelerinin, sitelerin sosyal tesislerini, kapalı kulüpleri veya özel mülkleri mekan olarak önerme (Örn: Asla site lokalleri veya özel tesisleri yazma).
