@@ -41,30 +41,34 @@ KULLANICININ SON İSTEĞİ:
 "${cleanLastMessage || rawLastUserMessage}"
 
 GÖREVİN VE KURALLAR:
-1. Çok hızlı ve dobra cevap ver (2 saniyenin altında). Kullanıcının istediği semtteki gerçek mekanları hafızandan listele.
-2. ASLA hafızandan uydurma mekan yazma. Sadece gerçek ve bilinen popüler mekanları listele.
-3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse, kısaca samimi bir dille hangi semtte olduğunu sor.
-4. Eğer semt ve istek belliyse, önerdiğin gerçek mekanları (en fazla 3 mekan) aşağıdaki JSON formatında bir kod bloğu (\`\`\`json ... \`\`\`) olarak cevabının sonuna iliştir:
+1. Kullanıcının istediği semtteki (Örn: Samandıra, Kadıköy, Moda, Beşiktaş vb.) en bilinen, popüler ve açık 3 gerçek mekanı öner.
+2. ASLA hayalinden mekan uydurma. Sadece gerçek ve bilinen popüler mekanları listele.
+3. Eğer kullanıcı ne aradığını veya hangi semtte olduğunu henüz hiç belirtmediyse:
+   - "places" dizisini boş bırak ([]).
+   - "text" alanında kısaca ve samimi bir dille hangi semtte olduğunu sor.
+4. Eğer semt ve istek belliyse, önerdiğin 3 mekanı ve samimi 1-2 cümlelik yorumunu YALNIZCA geçerli bir JSON nesnesi olarak döndür:
 
 \`\`\`json
-[
-  {
-    "name": "Mekan Adı",
-    "district": "Semt / İlçe",
-    "rating": "4.5",
-    "summary": "Neden önerildiği, ortamı ve açık olma durumu hakkında 1 cümle",
-    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Mekan+Adi+Semt"
-  }
-]
+{
+  "text": "Semt hakkında dobra, samimi ve arkadaş canlısı 1-2 cümlelik yorumun",
+  "places": [
+    {
+      "name": "Mekan Adı",
+      "district": "Semt Adı",
+      "rating": "4.4",
+      "summary": "Neden önerildiği ve ortamı hakkında 1 cümle",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Mekan+Adi+Semt"
+    }
+  ]
+}
 \`\`\`
-
-5. JSON bloğunun üstünde arkadaşına anlatır gibi dobra, 2-3 cümlelik samimi yorumunu yap. Robotik kurumsal nezaket cümleleri kurma.`;
+Sadece bu JSON formatında cevap ver.`;
 
     console.log(`[Gemini AI Chat Call]: Prompt sent for: "${cleanLastMessage || rawLastUserMessage}"`);
 
-    // 2. YEDEK MODELLERLE ÇAĞRI (503 High Demand ve 429 için otomatik fallback)
+    // Model önceliği: gemini-flash-lite-latest (taze kota & ultra hızlı), ardından gemini-flash-latest
     let response: any;
-    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
@@ -76,8 +80,8 @@ GÖREVİN VE KURALLAR:
         if (response?.text) break;
       } catch (err: any) {
         lastError = err;
-        console.warn(`[Gemini Chat Retry]: ${modelName} başarısız oldu (${err.message?.slice(0, 80)}), yedek modele geçiliyor...`);
-        await new Promise(r => setTimeout(r, 300));
+        console.warn(`[Gemini Chat Retry]: ${modelName} başarısız oldu (${err.message?.slice(0, 80)}), sonraki modele geçiliyor...`);
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
@@ -86,32 +90,32 @@ GÖREVİN VE KURALLAR:
     }
 
     const fullText = response?.text || '';
+    let responseText = 'İşte tavsiye ettiğim mekanlar:';
     let places: any[] = [];
-    let cleanContent = fullText;
     let jsonString = '';
 
     const jsonMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (jsonMatch && jsonMatch[1]) {
       jsonString = jsonMatch[1].trim();
-      cleanContent = fullText.replace(/```(?:json)?[\s\S]*?```/g, '').trim();
     } else {
-      const arrayMatch = fullText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (arrayMatch) {
-        jsonString = arrayMatch[0].trim();
-        cleanContent = fullText.replace(/\[\s*\{[\s\S]*\}\s*\]/g, '').trim();
+      const objMatch = fullText.match(/\{[\s\S]*\}/);
+      if (objMatch) {
+        jsonString = objMatch[0].trim();
       }
     }
 
     if (jsonString) {
       try {
         const parsed = JSON.parse(jsonString);
-        if (Array.isArray(parsed)) {
-          places = parsed.map((p: any, idx: number) => ({
-            place_id: `gemini_chat_${Date.now()}_${idx}`,
+        if (parsed.text) responseText = parsed.text;
+        if (Array.isArray(parsed.places)) {
+          places = parsed.places.map((p: any, idx: number) => ({
+            place_id: `chat_${Date.now()}_${idx}`,
             name: p.name || 'Mekan',
             district: p.district || '',
-            rating: p.rating || '4.5',
+            rating: p.rating || '4.4',
             reason: p.summary || p.reason || 'Tavsiye edilen popüler mekan.',
+            summary: p.summary || p.reason || 'Tavsiye edilen popüler mekan.',
             mapsUrl: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`,
             googleMapsUri: p.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.name || '') + ' ' + (p.district || ''))}`
           }));
@@ -121,9 +125,15 @@ GÖREVİN VE KURALLAR:
       }
     }
 
+    // Eğer json parse edilemediyse ama fullText varsa temizle
+    if (places.length === 0 && fullText && !jsonString) {
+      responseText = fullText.replace(/```(?:json)?[\s\S]*?```/g, '').trim();
+    }
+
     return NextResponse.json({
-      content: cleanContent || 'İşte tavsiye ettiğim mekanlar:',
-      places
+      text: responseText,
+      content: responseText,
+      places: places
     });
 
   } catch (error: any) {

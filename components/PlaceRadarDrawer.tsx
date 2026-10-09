@@ -120,9 +120,10 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       });
 
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setPlaces(data.data || []);
-        if ((!data.data || data.data.length === 0) && data.message) {
+      if (res.ok && (data.places || data.data)) {
+        const placeList = data.places || data.data || [];
+        setPlaces(placeList);
+        if (placeList.length === 0 && data.message) {
           setErrorMessage(data.message);
         }
       } else {
@@ -148,7 +149,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
       console.error(e);
       setErrorMessage('⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?');
     } finally {
-      setLoadingPlaces(false);
+      setLoadingPlaces(false); // Skeleton'ı KESİNLİKLE sonlandır
       isSearchingRef.current = false;
     }
   };
@@ -246,14 +247,16 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
         throw new Error(errData.error || `Sunucu hatası (${res.status})`);
       }
       const data = await res.json();
+      const content = data.text || data.content || '';
+      const placeList = data.places || data.data || [];
 
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: data.content || '',
-          places: data.places || []
+          content: content,
+          places: placeList
         }
       ]);
     } catch (err: any) {
@@ -602,7 +605,7 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                       {m.places && m.places.length > 0 && (
                         <div className="w-full mt-3 space-y-3">
                           {m.places.map((place: any, idx: number) => (
-                            <div key={place.place_id || idx} className="bg-[#12151F] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-md w-full max-w-[90%]">
+                            <div key={place.place_id || place.name || idx} className="bg-[#12151F] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-md w-full">
                               <div className="p-3 space-y-2">
                                 <div className="flex justify-between items-start">
                                   <h4 className="font-bold text-white text-sm line-clamp-1 flex-1 flex items-center gap-1.5">
@@ -615,7 +618,9 @@ export default function PlaceRadarDrawer({ isOpen, onClose, roomId, currentUserN
                                   </div>
                                 </div>
                                 
-                                <p className="text-xs text-neutral-400 italic">"{place.reason}"</p>
+                                {(place.reason || place.summary) && (
+                                  <p className="text-xs text-neutral-400 italic">"{place.reason || place.summary}"</p>
+                                )}
                                 
                                 <div className="flex flex-wrap gap-2 text-[10px] font-mono text-neutral-400">
                                   <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">

@@ -20,7 +20,6 @@ function getCleanCategoryQuery(district: string, category: string): string {
   if (cat.includes('Park') || cat.includes('Otopark')) return `${district} otoparkı olan restoran kafe mekanlar`;
   if (cat.includes('Tavuk') || cat.includes('Kanat')) return `${district} popüler sınırsız tavuk kanat mekanları`;
 
-  // Emoji ve özel sembolleri temizle
   const clean = cat.replace(/[\u{1F300}-\u{1FAFF}|\u{2600}-\u{27BF}]/gu, '').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim();
   return `${district} ${clean || 'popüler mekanlar'}`.trim();
 }
@@ -49,6 +48,7 @@ export async function POST(req: Request) {
       console.log(`[Places Cache HIT]: Key="${cacheKey}" - ${cachedEntry.data.length} mekan önbellekten döndürüldü.`);
       return NextResponse.json({
         success: true,
+        places: cachedEntry.data,
         data: cachedEntry.data,
         cached: true
       });
@@ -101,9 +101,9 @@ KURALLAR:
 
     console.log(`[Gemini Ultra-Fast Call]: targetDistrict="${targetDistrict}", category="${cleanSearchQuery}"`);
 
-    // 2. ULTRA-HIZLI ÇAĞRI + 503 / RATE LIMIT İÇİN YEDEK MODEL VE RETRY
+    // Model önceliği: gemini-flash-lite-latest (taze kota & ultra hızlı), ardından gemini-flash-latest
     let response: any;
-    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
@@ -112,12 +112,11 @@ KURALLAR:
           model: modelName,
           contents: prompt
         });
-        if (response?.text) break; // Başarılıysa döngüden çık
+        if (response?.text) break;
       } catch (err: any) {
         lastError = err;
-        console.warn(`[Gemini Retry]: ${modelName} başarısız oldu (${err.message?.slice(0, 80)}), yedek modele geçiliyor...`);
-        // 300ms minik bekleme ile sonraki modele geç
-        await new Promise(r => setTimeout(r, 300));
+        console.warn(`[Gemini Retry]: ${modelName} başarısız oldu (${err.message?.slice(0, 80)}), sonraki modele geçiliyor...`);
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
@@ -167,7 +166,7 @@ KURALLAR:
           });
         }
       } catch (parseErr) {
-        console.error('Failed to parse places JSON:', parseErr);
+        console.error('Failed to parse places JSON from Gemini response:', parseErr);
       }
     }
 
@@ -181,13 +180,13 @@ KURALLAR:
 
     return NextResponse.json({
       success: true,
+      places: places,
       data: places,
       message: places.length === 0 ? `"${targetDistrict}" bölgesinde mekan bulunamadı.` : undefined
     });
 
   } catch (error: any) {
     console.error('[Recommend API Fatal Error]:', error);
-    // Asla ham teknik JSON dönme
     return NextResponse.json(
       { error: '⚠️ Sunucular şu an biraz yoğun, birkaç saniye sonra tekrar dener misin?' },
       { status: 503 }
